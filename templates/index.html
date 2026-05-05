@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkers – MCTS AI</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Checkers 10×10</h1>
+      <p id="status-text">Your turn</p>
+    </header>
+
+    <div id="main">
+      <div id="board-container">
+        <div id="board"></div>
+        <div id="captured"></div>
+      </div>
+
+      <aside id="panel">
+        <h2>New Game</h2>
+        <label>Play as
+          <select id="sel-color">
+            <option value="1">White (first)</option>
+            <option value="-1">Black (second)</option>
+          </select>
+        </label>
+
+        <label>AI type
+          <select id="sel-variant">
+            <option value="uct">UCT (base)</option>
+            <option value="rave">UCT + RAVE</option>
+            <option value="progressive">UCT + Progressive Bias</option>
+            <option value="heuristic">Heuristic (greedy)</option>
+            <option value="random">Random</option>
+          </select>
+        </label>
+
+        <label>MCTS iterations
+          <input id="inp-iterations" type="number" value="2000" min="100" max="50000" step="100">
+        </label>
+
+        <label>Max moves (draw limit)
+          <input id="inp-max-moves" type="number" value="200" min="50" max="1000" step="10">
+        </label>
+
+        <button id="btn-new-game">Start New Game</button>
+
+        <div id="info">
+          <p>Move: <span id="info-move">0</span></p>
+          <p>Current player: <span id="info-player">White</span></p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,300 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{url}
+
+\title{Konspekt projektu badawczego \\
+\large Zastosowanie Monte Carlo Tree Search (MCTS/UCT) do gry w warcaby 10$\times$10 bez obowiązkowego bicia z damkami bijącymi po całej diagonali}
+\author{Jakub Kindracki \and Wiktor Kobielski}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Opis problemu}
+
+Przedmiotem projektu jest zastosowanie algorytmu Monte Carlo Tree Search
+(MCTS), w szczególności jego wariantu Upper Confidence Bound applied to
+Trees (UCT), do stworzenia sztucznej inteligencji grającej w wybraną grę
+dwuosobową z pełną informacją. Grą wybraną do badań są warcaby na planszy
+$10\times10$ z modyfikacjami klasycznych zasad: \emph{bicie nie jest
+obowiązkowe} oraz \emph{damki (latające) biją wzdłuż całej diagonali}, co
+odpowiada zasadom zbliżonym do warcabów międzynarodowych w aspekcie ruchu
+damki, lecz różnym w aspekcie obowiązku bicia.
+
+Brak obowiązkowego bicia istotnie zwiększa współczynnik rozgałęzienia
+drzewa gry — w każdej pozycji, w której istnieje bicie, gracz może je
+wykonać lub wybrać dowolny inny ruch. Oznacza to, że MCTS musi rozważać
+znacznie szerszy zbiór akcji niż w klasycznych warcabach, a heurystyki
+ukierunkowane na bicia (typowe dla silników warcabowych) mają
+ograniczone zastosowanie. Latające damki natomiast wzmacniają wartość
+promocji i wprowadzają silne, dalekosiężne interakcje pomiędzy figurami,
+co może wpływać na jakość losowych symulacji. Ta kombinacja zasad czyni
+grę nietrywialnym poligonem do badania algorytmu MCTS i jego rozszerzeń.
+
+Stan gry reprezentujemy jako planszę $10\times10$ z 20 pionkami po
+każdej stronie, ustawionymi na ciemnych polach pierwszych czterech
+rzędów każdego z graczy. Gra kończy się zwycięstwem strony, której
+przeciwnik nie ma legalnego ruchu (brak figur lub całkowite
+zablokowanie). W celu zapewnienia, aby eksperymenty kończyły się w
+rozsądnym czasie, wprowadzimy limit liczby półruchów bez bicia i bez
+ruchu pionka — przekroczenie limitu skutkuje remisem (zasada zbliżona
+do reguły 50 ruchów w szachach).
+
+\section{Wstępny przegląd literatury}
+
+Algorytm MCTS w jego współczesnej postaci został sformalizowany przez
+Kocsisa i Szepesváriego~\cite{kocsis2006uct} jako UCT — zastosowanie
+strategii UCB1 \cite{auer2002ucb} do równoważenia eksploracji i
+eksploatacji w drzewie gry. Browne i in.~\cite{browne2012survey}
+przedstawili obszerny przegląd wariantów MCTS i obszarów ich
+zastosowań w grach.
+
+Kluczowym osiągnięciem MCTS jest wynik w grze Go: AlphaGo i AlphaZero
+\cite{silver2016alphago,silver2017alphazero} pokazały, że MCTS w
+połączeniu z głębokimi sieciami neuronowymi prowadzi do nadludzkiego
+poziomu gry. W naszym projekcie skupiamy się na "klasycznym" MCTS bez
+sieci neuronowych, ze względu na zakres przedmiotu i ograniczenia
+sprzętowe.
+
+W ramach usprawnień UCT zbadamy dwa podejścia z literatury:
+\begin{itemize}
+    \item \textbf{RAVE / AMAF} (Rapid Action Value Estimation, All Moves
+        As First) -- Gelly i Silver \cite{gelly2007combining,
+        gelly2011monte} zaproponowali heurystykę współdzielenia statystyk
+        ruchów, znacząco przyspieszającą zbieżność wartości akcji w
+        rzadko odwiedzanych węzłach.
+    \item \textbf{Progressive Bias / Progressive Widening} -- Chaslot i
+        in.~\cite{chaslot2008progressive} wprowadzili wzmocnienie reguły
+        wyboru węzła członem heurystycznym, którego wpływ maleje wraz z
+        liczbą wizyt.
+\end{itemize}
+
+W kontekście warcabów referencyjnym osiągnięciem jest program
+\textsc{Chinook} \cite{schaeffer2007checkers}, który dowiódł, że
+warcaby angielskie ($8\times8$, z obowiązkowym biciem) są
+\emph{rozwiązane} (gra perfekcyjna kończy się remisem). Warcaby
+$10\times10$ pozostają znacznie bardziej złożone obliczeniowo i nie
+zostały rozwiązane. Programy oparte o $\alpha\beta$-przeszukiwanie z
+heurystykami (np. \textsc{Kingsrow}, \textsc{Scan}) dominują w warcabach
+międzynarodowych, ale MCTS w tym wariancie gry pozostaje stosunkowo
+słabo zbadany w literaturze, co dodatkowo motywuje nasze badania.
+
+Heurystyczna funkcja oceny dla warcabów -- materiał, mobilność, kontrola
+centrum, struktura tylnego rzędu -- jest dobrze opisana m.in. w pracach
+Samuela~\cite{samuel1959} i pracach autorów Chinook. Wykorzystamy ją
+zarówno w graczu czysto heurystycznym (przeciwnik bazowy), jak i w
+członie progressive bias.
+
+\section{Hipotezy badawcze}
+
+Zgodnie z wymaganiami projektu stawiamy następujące hipotezy:
+
+\begin{description}[style=nextline,leftmargin=0pt]
+    \item[H1 (UCT vs heurystyka).] UCT z wystarczającą liczbą iteracji
+        ($\geq 10\,000$ na ruch) gra istotnie skuteczniej od gracza
+        czysto heurystycznego (greedy, jednopoziomowy), osiągając
+        $> 60\%$ wygranych w meczu z naprzemienną zmianą kolorów.
+
+    \item[H2 (RAVE).] UCT z rozszerzeniem RAVE wygrywa istotnie częściej
+        z czystym UCT przy tym samym budżecie iteracji, ze względu na
+        lepsze wykorzystanie informacji z symulacji w grze o wysokim
+        współczynniku rozgałęzienia.
+
+    \item[H3 (Progressive Bias).] UCT z heurystycznym progressive bias
+        wygrywa istotnie częściej z czystym UCT, a jego przewaga jest
+        największa przy małych budżetach iteracji (gdy losowe symulacje
+        nie wystarczają do oceny pozycji).
+
+    \item[H4 (hipoteza autorska -- wpływ braku obowiązku bicia).] Brak
+        obowiązkowego bicia istotnie pogarsza skuteczność czystego UCT
+        względem wariantu z obowiązkowym biciem przy tym samym budżecie
+        iteracji. Innymi słowy: większy współczynnik rozgałęzienia
+        wynikający z dobrowolności bicia obniża jakość decyzji UCT
+        bardziej niż wariantów z heurystycznym wsparciem (RAVE,
+        progressive bias). W szczególności oczekujemy, że \emph{względna}
+        przewaga RAVE i progressive bias nad czystym UCT będzie większa
+        w wariancie bez obowiązkowego bicia niż w wariancie klasycznym.
+\end{description}
+
+\section{Sposób weryfikacji hipotez}
+
+\subsection{Plan eksperymentów}
+
+Każdą hipotezę zweryfikujemy poprzez zorganizowanie turniejów
+\emph{round-robin} pomiędzy graczami przy ustalonym budżecie iteracji /
+czasu. Dla każdej pary graczy rozegramy $N \geq 50$ partii (po
+$N/2$ z każdym kolorem), aby wyeliminować wpływ pierwszego ruchu.
+
+\paragraph{Zbiory danych.} Ponieważ jest to gra dwuosobowa, "danymi"
+są wyniki rozegranych partii. Dla zapewnienia powtarzalności:
+\begin{itemize}
+    \item Każdy gracz przyjmuje parametr \texttt{seed}; ziarna pochodne
+        wyprowadzamy deterministycznie z ziarna bazowego.
+    \item Każda konfiguracja eksperymentu (para graczy, budżet, wariant
+        zasad) zostanie powtórzona z $\geq 5$ różnymi ziarnami bazowymi,
+        co pozwoli oszacować rozrzut wyników.
+    \item Wszystkie partie zostaną zapisane (sekwencja ruchów + ziarno),
+        umożliwiając powtórzenie konkretnego przebiegu.
+\end{itemize}
+
+\paragraph{Mierzone wielkości.} Procent wygranych, remisów i przegranych
+z 95\%-przedziałem ufności (Wilson lub bootstrap), średnia długość
+partii, średni czas na ruch, średnia liczba odwiedzonych węzłów drzewa.
+
+\paragraph{Testy istotności.} Dla porównań dwóch graczy zastosujemy
+dwustronny test proporcji (lub bootstrap przedziału ufności na różnicy
+procentów wygranych). Hipotezę uznajemy za potwierdzoną, jeśli
+$p < 0{,}05$ \emph{i} efekt jest spójny dla różnych ziaren.
+
+\paragraph{Plan opracowania wyników.} Wyniki przedstawimy w postaci:
+wykresów słupkowych z przedziałami ufności (porównania
+graczy), wykresów krzywych (skuteczność vs budżet iteracji), tabel
+zbiorczych w raporcie. Surowe dane zostaną dołączone jako pliki
+JSON/CSV.
+
+\subsection{Testy z udziałem ludzi}
+
+Zaimplementujemy interfejs przeglądarkowy (Flask + HTML/JS) umożliwiający
+grę człowiek-komputer. Przeprowadzimy testy z co najmniej 5 osobami
+(różny poziom znajomości warcabów). Każda osoba rozegra po jednej
+partii z każdym wariantem AI; zbierzemy ankietę dotyczącą subiektywnej
+oceny "ludzkiego" charakteru i siły gry, a także wyniki obiektywne.
+
+\section{Harmonogram działań}
+
+\begin{tabular}{p{3.2cm}p{11cm}}
+\toprule
+\textbf{Termin} & \textbf{Zadanie} \\
+\midrule
+Tydzień 1--2 & Implementacja silnika gry (warcaby 10$\times$10 z
+                wybranymi zasadami), testy jednostkowe generatora ruchów. \\
+Tydzień 3 & Implementacja czystego UCT i interfejsu gracza, gracza losowego
+            i heurystycznego. \\
+Tydzień 4 & Implementacja wariantów UCT: RAVE i progressive bias. \\
+Tydzień 5 & Implementacja interfejsu przeglądarkowego, runner
+            eksperymentalny CLI z obsługą ziarna i raportowania. \\
+Tydzień 6 & Eksperymenty H1--H3 (porównania graczy AI). Optymalizacja
+            wydajności (parallel root MCTS). \\
+Tydzień 7 & Eksperymenty H4 (porównanie wariantów zasad), testy z
+            udziałem 5+ osób. \\
+Tydzień 8 & Opracowanie wyników, pisanie raportu, przygotowanie
+            prezentacji. \\
+\bottomrule
+\end{tabular}
+
+\section{Ogólny projekt techniczny}
+
+\paragraph{Język i biblioteki.} Implementacja w \textbf{Python 3}.
+Biblioteki:
+\begin{itemize}[noitemsep]
+    \item \texttt{numpy} -- reprezentacja planszy, agregacja wyników.
+    \item \texttt{multiprocessing} -- root parallelization MCTS
+        (niezależne drzewa w procesach roboczych, agregacja liczników
+        wizyt).
+    \item \texttt{Flask} + \texttt{HTML/JavaScript} -- interfejs
+        przeglądarkowy (uruchamiany z poziomu \texttt{python app.py},
+        cross-platform).
+    \item \texttt{matplotlib} / \texttt{pandas} -- analiza i wykresy w
+        raporcie.
+    \item \texttt{pytest} -- testy generatora ruchów.
+\end{itemize}
+
+\paragraph{Architektura kodu.}
+\begin{itemize}[noitemsep]
+    \item \texttt{game.py} -- silnik gry: stan, generator ruchów (pionki
+        oraz latające damki), bicia łańcuchowe, promocja, detekcja
+        zakończenia.
+    \item \texttt{mcts.py} -- MCTS z trzema wariantami selekcji
+        (\texttt{uct}, \texttt{rave}, \texttt{progressive}) i
+        równoległością na poziomie pierwiastka.
+    \item \texttt{players.py} -- abstrakcja gracza: \texttt{RandomPlayer},
+        \texttt{HeuristicPlayer}, \texttt{MCTSPlayer}.
+    \item \texttt{app.py} -- serwer Flask, REST API dla UI.
+    \item \texttt{experiments.py} -- runner CLI eksperymentów
+        (round-robin, kontrola ziarna, eksport JSON/CSV).
+\end{itemize}
+
+\paragraph{Reprodukowalność.} Wszyscy gracze przyjmują \texttt{seed}.
+Eksperymenty alternują kolory i używają ziaren wyprowadzonych
+deterministycznie z bazowego. Pełna konfiguracja partii (gracze, ziarno,
+zasady) zapisywana jest w wynikach, co pozwala odtworzyć dowolny
+przebieg.
+
+\paragraph{Wykorzystanie LLM.} Duże modele językowe (Claude Code) były i
+będą wykorzystywane jako asystent programistyczny -- generowanie
+szkieletu kodu, refaktoryzacja, sugerowanie testów. Każde użycie zostanie
+udokumentowane i podsumowane w raporcie końcowym, zgodnie z wymaganiem
+projektu. Ostateczna treść raportu, hipotezy, projekt eksperymentów i
+analiza wyników są dziełem autorów.
+
+\begin{thebibliography}{9}
+
+\bibitem{kocsis2006uct}
+L.~Kocsis and C.~Szepesvári,
+\emph{Bandit based Monte-Carlo Planning},
+ECML, 2006.
+
+\bibitem{auer2002ucb}
+P.~Auer, N.~Cesa-Bianchi, P.~Fischer,
+\emph{Finite-time Analysis of the Multiarmed Bandit Problem},
+Machine Learning, 47(2--3):235--256, 2002.
+
+\bibitem{browne2012survey}
+C.~Browne et al.,
+\emph{A Survey of Monte Carlo Tree Search Methods},
+IEEE Trans. on Computational Intelligence and AI in Games, 4(1):1--43,
+2012.
+
+\bibitem{gelly2007combining}
+S.~Gelly and D.~Silver,
+\emph{Combining online and offline knowledge in UCT},
+ICML, 2007.
+
+\bibitem{gelly2011monte}
+S.~Gelly and D.~Silver,
+\emph{Monte-Carlo tree search and rapid action value estimation in
+computer Go},
+Artificial Intelligence, 175(11):1856--1875, 2011.
+
+\bibitem{chaslot2008progressive}
+G.~M.~J.-B.~Chaslot, M.~H.~M.~Winands, H.~J.~van~den~Herik,
+J.~W.~H.~M.~Uiterwijk, B.~Bouzy,
+\emph{Progressive strategies for Monte-Carlo tree search},
+New Mathematics and Natural Computation, 4(3):343--357, 2008.
+
+\bibitem{silver2016alphago}
+D.~Silver et al.,
+\emph{Mastering the game of Go with deep neural networks and tree
+search},
+Nature, 529(7587):484--489, 2016.
+
+\bibitem{silver2017alphazero}
+D.~Silver et al.,
+\emph{Mastering Chess and Shogi by Self-Play with a General
+Reinforcement Learning Algorithm},
+arXiv:1712.01815, 2017.
+
+\bibitem{schaeffer2007checkers}
+J.~Schaeffer, N.~Burch, Y.~Björnsson, A.~Kishimoto, M.~Müller,
+R.~Lake, P.~Lu, S.~Sutphen,
+\emph{Checkers is Solved},
+Science, 317(5844):1518--1522, 2007.
+
+\bibitem{samuel1959}
+A.~L.~Samuel,
+\emph{Some Studies in Machine Learning Using the Game of Checkers},
+IBM Journal of Research and Development, 3(3):210--229, 1959.
+
+\end{thebibliography}
+
+\end{document}
