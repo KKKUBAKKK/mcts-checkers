@@ -71,13 +71,28 @@ W ramach usprawnień UCT zbadamy dwa podejścia z literatury:
     \item \textbf{RAVE / AMAF} (Rapid Action Value Estimation, All Moves
         As First) -- Gelly i Silver \cite{gelly2007combining,
         gelly2011monte} zaproponowali heurystykę współdzielenia statystyk
-        ruchów, znacząco przyspieszającą zbieżność wartości akcji w
-        rzadko odwiedzanych węzłach.
-    \item \textbf{Progressive Bias / Progressive Widening} -- Chaslot i
+        ruchów: wynik symulacji jest przypisywany nie tylko ruchowi
+        faktycznie wykonanemu w węźle, lecz wszystkim ruchom o tym
+        samym kluczu, które wystąpiły w dalszej części playoutu.
+        Statystyki AMAF są łączone z klasycznymi statystykami UCT za
+        pomocą malejącej wagi $\beta(n)$, co znacząco przyspiesza
+        zbieżność wartości akcji w rzadko odwiedzanych węzłach.
+    \item \textbf{Progressive Bias} -- Chaslot i
         in.~\cite{chaslot2008progressive} wprowadzili wzmocnienie reguły
-        wyboru węzła członem heurystycznym, którego wpływ maleje wraz z
-        liczbą wizyt.
+        wyboru węzła dodatkowym członem heurystycznym
+        $w \cdot h(\text{stan})/(n_i+1)$, gdzie $h$ jest statyczną
+        funkcją oceny pozycji, a $n_i$ liczbą wizyt dziecka. Wpływ
+        członu maleje wraz ze wzrostem $n_i$, dzięki czemu heurystyka
+        kieruje przeszukiwaniem we wczesnej fazie, a w miarę gromadzenia
+        danych decyduje statystyka Monte~Carlo.
 \end{itemize}
+
+Łącznie porównamy zatem trzy warianty MCTS: \textbf{czysty UCT}
+(selekcja wg UCB1), \textbf{UCT+RAVE} oraz \textbf{UCT+progressive
+bias}. Wszystkie dzielą tę samą strukturę pętli (selekcja --
+ekspansja -- losowa symulacja do końca gry -- propagacja wsteczna)
+i ten sam mechanizm zrównoleglenia (root parallelization: niezależne
+drzewa w procesach roboczych z agregacją liczników wizyt na końcu).
 
 W kontekście warcabów referencyjnym osiągnięciem jest program
 \textsc{Chinook} \cite{schaeffer2007checkers}, który dowiódł, że
@@ -95,35 +110,69 @@ Samuela~\cite{samuel1959} i pracach autorów Chinook. Wykorzystamy ją
 zarówno w graczu czysto heurystycznym (przeciwnik bazowy), jak i w
 członie progressive bias.
 
+\paragraph{Gracz heurystyczny.} Bazowy gracz heurystyczny działa w
+prostym schemacie \emph{greedy jednopoziomowym}: dla każdego legalnego
+ruchu z bieżącej pozycji wykonuje go na kopii stanu, oblicza wartość
+statycznej funkcji oceny powstałej pozycji i wybiera ruch maksymalizujący
+ocenę (z deterministycznym rozstrzyganiem remisów dzięki ziarnu RNG).
+Funkcja oceny jest liniową kombinacją:
+\begin{itemize}[noitemsep]
+    \item \textbf{materiału} -- pionek o wartości $1{,}0$, damka
+        $3{,}0$;
+    \item \textbf{zaawansowania pionka} -- mały bonus za bliskość do
+        rzędu promocji (premiuje rozwój i potencjał uzyskania damki);
+    \item ocena zwracana jest w postaci znormalizowanej
+        $\text{biały}/(\text{biały}+\text{czarny}) \in [0,1]$, dzięki
+        czemu działa w obu kolorach po prostym odwróceniu znaku.
+\end{itemize}
+Świadomie zachowujemy heurystykę prostą -- ma być realistycznym, lecz
+słabym przeciwnikiem porównawczym i jednocześnie tym samym członem
+$h(\text{stan})$ używanym w wariancie progressive bias, co zapewnia
+spójność porównań.
+
 \section{Hipotezy badawcze}
 
-Zgodnie z wymaganiami projektu stawiamy następujące hipotezy:
+Zgodnie z wymaganiami projektu stawiamy cztery hipotezy: trzy
+wymagane (porównania graczy) oraz jedną autorską, związaną
+bezpośrednio z modyfikacją zasad badanego wariantu warcabów.
 
 \begin{description}[style=nextline,leftmargin=0pt]
-    \item[H1 (UCT vs heurystyka).] UCT z wystarczającą liczbą iteracji
-        ($\geq 10\,000$ na ruch) gra istotnie skuteczniej od gracza
-        czysto heurystycznego (greedy, jednopoziomowy), osiągając
-        $> 60\%$ wygranych w meczu z naprzemienną zmianą kolorów.
+    \item[H1 (UCT vs heurystyka).] Czysty UCT z wystarczającym
+        budżetem iteracji ($\geq 10\,000$ na ruch) gra istotnie
+        skuteczniej od gracza czysto heurystycznego (greedy,
+        jednopoziomowy), osiągając $> 60\%$ wygranych w meczu z
+        naprzemienną zmianą kolorów. Hipoteza weryfikuje, czy losowe
+        symulacje wystarczają do pokonania prostej, ale ukierunkowanej
+        wiedzy domenowej w grze o wysokim współczynniku rozgałęzienia.
 
-    \item[H2 (RAVE).] UCT z rozszerzeniem RAVE wygrywa istotnie częściej
-        z czystym UCT przy tym samym budżecie iteracji, ze względu na
-        lepsze wykorzystanie informacji z symulacji w grze o wysokim
-        współczynniku rozgałęzienia.
+    \item[H2 (RAVE poprawia UCT).] UCT z rozszerzeniem RAVE wygrywa
+        istotnie częściej z czystym UCT przy tym samym budżecie
+        iteracji. Motywacja: warcaby 10$\times$10 bez obowiązku bicia
+        mają wysoki współczynnik rozgałęzienia, więc współdzielenie
+        statystyk ruchów (AMAF) powinno wyraźnie przyspieszyć
+        zbieżność oceny rzadko odwiedzanych akcji.
 
-    \item[H3 (Progressive Bias).] UCT z heurystycznym progressive bias
-        wygrywa istotnie częściej z czystym UCT, a jego przewaga jest
-        największa przy małych budżetach iteracji (gdy losowe symulacje
-        nie wystarczają do oceny pozycji).
+    \item[H3 (Progressive bias poprawia UCT).] UCT z heurystycznym
+        progressive bias wygrywa istotnie częściej z czystym UCT,
+        a jego przewaga jest największa przy małych budżetach
+        iteracji ($\leq 2\,000$/ruch), gdy losowe symulacje nie
+        wystarczają do oceny pozycji. Wraz ze wzrostem liczby
+        iteracji oczekujemy zaniku przewagi (statystyki MC dominują).
 
-    \item[H4 (hipoteza autorska -- wpływ braku obowiązku bicia).] Brak
-        obowiązkowego bicia istotnie pogarsza skuteczność czystego UCT
-        względem wariantu z obowiązkowym biciem przy tym samym budżecie
-        iteracji. Innymi słowy: większy współczynnik rozgałęzienia
-        wynikający z dobrowolności bicia obniża jakość decyzji UCT
-        bardziej niż wariantów z heurystycznym wsparciem (RAVE,
-        progressive bias). W szczególności oczekujemy, że \emph{względna}
-        przewaga RAVE i progressive bias nad czystym UCT będzie większa
-        w wariancie bez obowiązkowego bicia niż w wariancie klasycznym.
+    \item[H4 (hipoteza autorska -- wpływ braku obowiązku bicia).]
+        Modyfikacja zasad polegająca na zniesieniu obowiązku bicia
+        zwiększa współczynnik rozgałęzienia drzewa gry i tym samym
+        \emph{zwiększa względną przewagę} wariantów wspomaganych
+        wiedzą (RAVE i progressive bias) nad czystym UCT.
+        Konkretnie: zakładamy, że stosunek wygranych \mbox{RAVE
+        vs UCT} (i analogicznie progressive bias vs UCT) będzie
+        wyższy w naszym wariancie zasad niż w wariancie klasycznym
+        (z obowiązkowym biciem) przy tym samym budżecie iteracji.
+        Hipoteza dotyka bezpośrednio specyfiki badanej gry i
+        odpowiada na pytanie, czy zniesienie heurystycznego
+        ,,filtra'' obowiązkowego bicia kompensowane jest skuteczniej
+        przez wiedzę dziedzinową, czy przez czysto statystyczne
+        wyszukiwanie MC.
 \end{description}
 
 \section{Sposób weryfikacji hipotez}
@@ -194,34 +243,19 @@ Tydzień 8 & Opracowanie wyników, pisanie raportu, przygotowanie
 
 \section{Ogólny projekt techniczny}
 
-\paragraph{Język i biblioteki.} Implementacja w \textbf{Python 3}.
-Biblioteki:
-\begin{itemize}[noitemsep]
-    \item \texttt{numpy} -- reprezentacja planszy, agregacja wyników.
-    \item \texttt{multiprocessing} -- root parallelization MCTS
-        (niezależne drzewa w procesach roboczych, agregacja liczników
-        wizyt).
-    \item \texttt{Flask} + \texttt{HTML/JavaScript} -- interfejs
-        przeglądarkowy (uruchamiany z poziomu \texttt{python app.py},
-        cross-platform).
-    \item \texttt{matplotlib} / \texttt{pandas} -- analiza i wykresy w
-        raporcie.
-    \item \texttt{pytest} -- testy generatora ruchów.
-\end{itemize}
+Całość projektu zostanie napisana w języku \textbf{Python~3}
+(cross-platform, jeden ekosystem dla silnika gry, MCTS, runnera
+eksperymentów oraz interfejsu webowego). Korzystamy wyłącznie ze
+standardowej biblioteki oraz kilku popularnych pakietów:
 
-\paragraph{Architektura kodu.}
 \begin{itemize}[noitemsep]
-    \item \texttt{game.py} -- silnik gry: stan, generator ruchów (pionki
-        oraz latające damki), bicia łańcuchowe, promocja, detekcja
-        zakończenia.
-    \item \texttt{mcts.py} -- MCTS z trzema wariantami selekcji
-        (\texttt{uct}, \texttt{rave}, \texttt{progressive}) i
-        równoległością na poziomie pierwiastka.
-    \item \texttt{players.py} -- abstrakcja gracza: \texttt{RandomPlayer},
-        \texttt{HeuristicPlayer}, \texttt{MCTSPlayer}.
-    \item \texttt{app.py} -- serwer Flask, REST API dla UI.
-    \item \texttt{experiments.py} -- runner CLI eksperymentów
-        (round-robin, kontrola ziarna, eksport JSON/CSV).
+    \item \texttt{multiprocessing} (stdlib) -- root parallelization
+        MCTS (niezależne drzewa w procesach roboczych, agregacja
+        liczników wizyt na końcu).
+    \item \texttt{Flask} -- lekki serwer webowy obsługujący interfejs
+        gry człowiek--komputer (REST + HTML/JS).
+    \item \texttt{matplotlib} / \texttt{pandas} -- analiza wyników i
+        wykresy do raportu końcowego.
 \end{itemize}
 
 \paragraph{Reprodukowalność.} Wszyscy gracze przyjmują \texttt{seed}.
