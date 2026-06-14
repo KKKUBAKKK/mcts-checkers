@@ -21,6 +21,7 @@ import os
 import time
 
 from game import CheckersGame, WHITE, BLACK
+from mcts import HEURISTICS
 from players import MCTSPlayer, HeuristicPlayer, RandomPlayer
 
 
@@ -92,12 +93,19 @@ def replay_game_log(path: str) -> CheckersGame:
     return game
 
 
-def make_player(name: str, iterations: int, seed: int | None):
+def make_player(name: str, iterations: int, seed: int | None,
+               heuristic: str = "base", num_workers: int | None = None):
+    """Create a player. ``heuristic`` (one of ``mcts.HEURISTICS``) selects the
+    positional evaluation variant for ``"heuristic"`` players and for the
+    progressive-bias term of ``"progressive"`` MCTS players (see H4).
+    ``num_workers`` controls root-parallelization for MCTS players (defaults
+    to the CPU count)."""
     if name == "heuristic":
-        return HeuristicPlayer(seed=seed)
+        return HeuristicPlayer(seed=seed, heuristic=heuristic)
     if name == "random":
         return RandomPlayer(seed=seed)
-    return MCTSPlayer(variant=name, iterations=iterations, parallel=True, seed=seed)
+    return MCTSPlayer(variant=name, iterations=iterations, parallel=True,
+                      seed=seed, heuristic=heuristic, num_workers=num_workers)
 
 
 def play_game(p1, p2, max_moves: int = 200, verbose: bool = False) -> dict:
@@ -129,6 +137,12 @@ def play_game(p1, p2, max_moves: int = 200, verbose: bool = False) -> dict:
     elapsed = time.time() - t0
     winner = game.get_winner()
 
+    # release any worker pools held by MCTS players
+    for p in (p1, p2):
+        close = getattr(p, "close", None)
+        if close is not None:
+            close()
+
     def _avg(xs: list[int]) -> float:
         return round(sum(xs) / len(xs), 1) if xs else 0.0
 
@@ -145,12 +159,19 @@ def play_game(p1, p2, max_moves: int = 200, verbose: bool = False) -> dict:
 def run_match(p1_name: str, p2_name: str, num_games: int,
               iterations: int, base_seed: int | None,
               max_moves: int, verbose: bool,
-              log_dir: str | None = None, run_tag: str = "") -> dict:
+              log_dir: str | None = None, run_tag: str = "",
+              p1_heuristic: str = "base", p2_heuristic: str = "base",
+              num_workers: int | None = None) -> dict:
     """Run a match of num_games between two player types.
 
     Each player plays both colors. For each pair of games (i*2, i*2+1),
     colors are swapped. When ``log_dir`` is set, every game is written to a
-    replayable text log under that directory.
+    replayable text log under that directory. ``p1_heuristic``/
+    ``p2_heuristic`` select the positional evaluation variant (see
+    ``mcts.HEURISTICS``) for each logical player (used by ``"heuristic"``
+    players and the bias term of ``"progressive"`` MCTS players, e.g. for
+    H4's edge-vs-center comparison). ``num_workers`` controls
+    root-parallelization for MCTS players (defaults to the CPU count).
     """
     p1_wins = p2_wins = draws = 0
     total_moves = 0
@@ -165,10 +186,12 @@ def run_match(p1_name: str, p2_name: str, num_games: int,
         # alternate colors
         if i % 2 == 0:
             white_name, black_name = p1_name, p2_name
+            white_heur, black_heur = p1_heuristic, p2_heuristic
         else:
             white_name, black_name = p2_name, p1_name
-        white = make_player(white_name, iterations, seed_i)
-        black = make_player(black_name, iterations, black_seed)
+            white_heur, black_heur = p2_heuristic, p1_heuristic
+        white = make_player(white_name, iterations, seed_i, white_heur, num_workers)
+        black = make_player(black_name, iterations, black_seed, black_heur, num_workers)
 
         result = play_game(white, black, max_moves, verbose)
         w = result["winner"]
@@ -209,8 +232,10 @@ def run_match(p1_name: str, p2_name: str, num_games: int,
         if log_dir is not None:
             meta = {
                 "white_player": white_name,
+                "white_heuristic": white_heur,
                 "white_seed": seed_i,
                 "black_player": black_name,
+                "black_heuristic": black_heur,
                 "black_seed": black_seed,
                 "iterations": iterations,
                 "max_moves": max_moves,
@@ -251,6 +276,12 @@ def main():
     parser.add_argument("-n", "--num-games", type=int, default=10)
     parser.add_argument("--iterations", type=int, default=2000,
                         help="MCTS iterations per move (for MCTS players)")
+    parser.add_argument("--p1-heuristic", type=str, default="base", choices=HEURISTICS,
+                        help="Positional evaluation variant for p1 "
+                             "(heuristic player / progressive bias term)")
+    parser.add_argument("--p2-heuristic", type=str, default="base", choices=HEURISTICS,
+                        help="Positional evaluation variant for p2 "
+                             "(heuristic player / progressive bias term)")
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--max-moves", type=int, default=200)
     parser.add_argument("--verbose", action="store_true")
@@ -263,6 +294,9 @@ def main():
     parser.add_argument("--log-dir", type=str, default="output/games",
                         help="Directory for replayable per-game logs "
                              "(set to '' or 'none' to disable)")
+    parser.add_argument("--workers", type=int, default=None,
+                        help="Number of worker processes for root-parallel "
+                             "MCTS (default: CPU count)")
     args = parser.parse_args()
 
     log_dir: str | None = args.log_dir
@@ -282,7 +316,9 @@ def main():
                 print(f"{'='*60}")
                 summary = run_match(p1, p2, args.num_games, args.iterations,
                                     args.seed, args.max_moves, args.verbose,
-                                    log_dir, run_tag)
+                                    log_dir, run_tag,
+                                    args.p1_heuristic, args.p2_heuristic,
+                                    args.workers)
                 all_summaries.append(summary)
                 print(f"\n  Result: {p1} {summary['p1_wins']}W / "
                       f"{p2} {summary['p2_wins']}W / {summary['draws']}D")
@@ -291,7 +327,9 @@ def main():
         print(f"{'='*60}")
         summary = run_match(args.p1, args.p2, args.num_games, args.iterations,
                             args.seed, args.max_moves, args.verbose,
-                            log_dir, run_tag)
+                            log_dir, run_tag,
+                            args.p1_heuristic, args.p2_heuristic,
+                            args.workers)
         all_summaries.append(summary)
         print(f"\n  Result: {args.p1} {summary['p1_wins']}W / "
               f"{args.p2} {summary['p2_wins']}W / {summary['draws']}D")

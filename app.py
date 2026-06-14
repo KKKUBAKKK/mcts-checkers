@@ -37,16 +37,22 @@ def new_game():
     variant = data.get("variant", "uct")
     iterations = int(data.get("iterations", 2000))
     max_moves = int(data.get("max_moves", 200))
+    heuristic = data.get("heuristic", "base")
 
     game = CheckersGame(max_moves=max_moves)
 
+    close = getattr(ai_player, "close", None)
+    if close is not None:
+        close()
+
     if variant == "heuristic":
-        ai_player = HeuristicPlayer()
+        ai_player = HeuristicPlayer(heuristic=heuristic)
     elif variant == "random":
         ai_player = RandomPlayer()
     else:
         ai_player = MCTSPlayer(
             variant=variant, iterations=iterations, parallel=True,
+            heuristic=heuristic,
         )
 
     resp = game.to_dict() | {"human_color": human_color}

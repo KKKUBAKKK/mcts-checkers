@@ -20,20 +20,47 @@ from game import WHITE_PIECE, WHITE_KING, BLACK_PIECE, BLACK_KING, EMPTY
 
 # ──────────────────────────────────────── heuristic evaluation (shared)
 
-def evaluate(game: CheckersGame) -> float:
-    """Static evaluation from WHITE's perspective in [0, 1]."""
+# Available heuristic variants for `evaluate()`, injectable into
+# HeuristicPlayer and the progressive-bias MCTS variant (see H4 in the
+# konspekt: edge-favouring vs. center-favouring positional evaluation).
+HEURISTICS = ("base", "edge", "center")
+
+_BOARD_CENTER = (BOARD_SIZE - 1) / 2.0  # 4.5 for a 10x10 board
+
+
+def _positional_bonus(c: int, heuristic: str) -> float:
+    """Column-based positional bonus added to a piece's material value."""
+    dist_from_center = abs(c - _BOARD_CENTER)
+    if heuristic == "edge":
+        return 0.05 * dist_from_center
+    if heuristic == "center":
+        return 0.05 * (_BOARD_CENTER - dist_from_center)
+    return 0.0
+
+
+def evaluate(game: CheckersGame, heuristic: str = "base") -> float:
+    """Static evaluation from WHITE's perspective in [0, 1].
+
+    ``heuristic`` selects a positional bonus (see :data:`HEURISTICS`):
+    - ``"base"``   : material + advancement only (no positional term).
+    - ``"edge"``   : additional bonus for pieces near the side columns.
+    - ``"center"`` : additional bonus for pieces near the central columns.
+    """
     white_score = black_score = 0.0
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
             p = game.board[r][c]
+            if p == EMPTY:
+                continue
+            bonus = _positional_bonus(c, heuristic)
             if p == WHITE_PIECE:
-                white_score += 1.0 + 0.05 * (BOARD_SIZE - 1 - r)
+                white_score += 1.0 + 0.05 * (BOARD_SIZE - 1 - r) + bonus
             elif p == WHITE_KING:
-                white_score += 3.0
+                white_score += 3.0 + bonus
             elif p == BLACK_PIECE:
-                black_score += 1.0 + 0.05 * r
+                black_score += 1.0 + 0.05 * r + bonus
             elif p == BLACK_KING:
-                black_score += 3.0
+                black_score += 3.0 + bonus
     total = white_score + black_score
     if total == 0:
         return 0.5
@@ -94,23 +121,30 @@ def ucb1_rave(node: MCTSNode, child: MCTSNode, c: float,
 
 
 def ucb1_progressive(node: MCTSNode, child: MCTSNode, c: float,
-                     w: float = 0.5) -> float:
+                     w: float = 0.5, heuristic: str = "base") -> float:
     exploit = child.value / child.visits
     explore = c * math.sqrt(math.log(node.visits) / child.visits)
-    bias = w * evaluate(child.game) / (child.visits + 1)
+    # evaluate() is from WHITE's perspective; exploit/explore are from the
+    # perspective of the player choosing among `node`'s children, so flip
+    # the heuristic term to match when that player is BLACK.
+    h = evaluate(child.game, heuristic)
+    if node.game.current_player == BLACK:
+        h = 1.0 - h
+    bias = w * h / (child.visits + 1)
     return exploit + explore + bias
 
 
 # ──────────────────────────────────────── core MCTS routines
 
-def _select(node: MCTSNode, variant: str, c: float) -> MCTSNode:
+def _select(node: MCTSNode, variant: str, c: float,
+            heuristic: str = "base") -> MCTSNode:
     while not node.is_terminal() and node.is_fully_expanded():
         if not node.children:
             break
         if variant == "rave":
             node = max(node.children, key=lambda ch: ucb1_rave(node, ch, c))
         elif variant == "progressive":
-            node = max(node.children, key=lambda ch: ucb1_progressive(node, ch, c))
+            node = max(node.children, key=lambda ch: ucb1_progressive(node, ch, c, heuristic=heuristic))
         else:
             node = max(node.children, key=lambda ch: ucb1(node, ch, c))
     return node
@@ -189,19 +223,22 @@ def _backpropagate(node: MCTSNode, result: float,
 
 
 def mcts_search(game: CheckersGame, iterations: int, variant: str = "uct",
-                c: float = 1.414, seed: int | None = None
+                c: float = 1.414, seed: int | None = None,
+                heuristic: str = "base"
                 ) -> tuple[list[tuple[int, int]], int]:
     """Run MCTS and return ``(best_move, num_nodes)``.
 
     ``num_nodes`` is the number of tree nodes visited (expanded) during the
-    search — used as a search-effort metric in experiments.
+    search — used as a search-effort metric in experiments. ``heuristic``
+    selects the positional evaluation variant (see :data:`HEURISTICS`) used
+    by the ``"progressive"`` variant's bias term; ignored otherwise.
     """
     rng = random.Random(seed)
     root = MCTSNode(game.clone())
 
     for _ in range(iterations):
         # select
-        node = _select(root, variant, c)
+        node = _select(root, variant, c, heuristic)
         # expand
         if not node.is_terminal():
             node = _expand(node)
@@ -241,7 +278,7 @@ def _worker(args: tuple) -> dict:
     counts (aggregated across workers for move selection) and the number of
     tree nodes this worker visited.
     """
-    game_board, current_player, move_count, max_moves, iterations, variant, c, seed = args
+    game_board, current_player, move_count, max_moves, iterations, variant, c, seed, heuristic = args
     game = CheckersGame.__new__(CheckersGame)
     game.board = game_board
     game.current_player = current_player
@@ -255,7 +292,7 @@ def _worker(args: tuple) -> dict:
     root = MCTSNode(game.clone())
 
     for _ in range(iterations):
-        node = _select(root, variant, c)
+        node = _select(root, variant, c, heuristic)
         if not node.is_terminal():
             node = _expand(node)
         result = _simulate(node.game, rng)
@@ -284,12 +321,22 @@ def _worker(args: tuple) -> dict:
 def mcts_search_parallel(game: CheckersGame, iterations: int,
                          variant: str = "uct", c: float = 1.414,
                          seed: int | None = None,
-                         num_workers: int = 4
+                         num_workers: int = 4,
+                         heuristic: str = "base",
+                         executor: Optional[ProcessPoolExecutor] = None,
                          ) -> tuple[list[tuple[int, int]], int]:
     """Root-parallel MCTS: split iterations across workers, aggregate visits.
 
     Returns ``(best_move, num_nodes)`` where ``num_nodes`` is the total number
-    of tree nodes visited summed across all worker trees.
+    of tree nodes visited summed across all worker trees. ``heuristic``
+    selects the positional evaluation variant (see :data:`HEURISTICS`) used
+    by the ``"progressive"`` variant's bias term; ignored otherwise.
+
+    ``executor``, if given, is a pre-created ``ProcessPoolExecutor`` (with at
+    least ``num_workers`` workers) that is reused instead of spawning a new
+    pool for this call. Creating a process pool is expensive (especially on
+    Windows, which uses ``spawn``), so callers making many searches (e.g. one
+    per move of a game) should pass a long-lived executor.
     """
     base_seed = seed if seed is not None else random.randint(0, 2**31)
     per_worker = iterations // num_workers
@@ -305,16 +352,20 @@ def mcts_search_parallel(game: CheckersGame, iterations: int,
             game.current_player,
             game.move_count,
             game.max_moves,
-            n, variant, c, base_seed + i,
+            n, variant, c, base_seed + i, heuristic,
         ))
 
     aggregated: dict[str, int] = {}
     total_nodes = 0
-    with ProcessPoolExecutor(max_workers=len(args_list)) as executor:
-        for result in executor.map(_worker, args_list):
-            total_nodes += result["nodes"]
-            for move_str, count in result["counts"].items():
-                aggregated[move_str] = aggregated.get(move_str, 0) + count
+    if executor is not None:
+        results = executor.map(_worker, args_list)
+    else:
+        with ProcessPoolExecutor(max_workers=len(args_list)) as local_executor:
+            results = list(local_executor.map(_worker, args_list))
+    for result in results:
+        total_nodes += result["nodes"]
+        for move_str, count in result["counts"].items():
+            aggregated[move_str] = aggregated.get(move_str, 0) + count
 
     if not aggregated:
         moves = game.get_legal_moves()

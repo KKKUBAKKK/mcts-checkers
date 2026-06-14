@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 import random
-from typing import Optional
+from concurrent.futures import ProcessPoolExecutor
 
 from game import CheckersGame, WHITE, BLACK
 from mcts import mcts_search, mcts_search_parallel, evaluate
@@ -35,14 +35,23 @@ class HeuristicPlayer:
     progressive-bias MCTS variant uses as its heuristic term ``h(state)``,
     so that comparisons between the heuristic player and progressive bias are
     consistent (per the project konspekt). The evaluation is a linear
-    combination of material (piece = 1.0, king = 3.0) and a small advancement
-    bonus, returned normalised as ``white / (white + black)`` in ``[0, 1]``.
+    combination of material (piece = 1.0, king = 3.0), a small advancement
+    bonus, and an optional positional bonus selected by ``heuristic`` (see
+    ``mcts.HEURISTICS``: ``"base"``, ``"edge"``, ``"center"``), returned
+    normalised as ``white / (white + black)`` in ``[0, 1]``.
+
+    Parameters
+    ----------
+    heuristic : str
+        Which positional evaluation variant to use (``"base"``, ``"edge"``,
+        or ``"center"``) — for H4 (edge-favouring vs. center-favouring play).
     """
 
     last_node_count: int = 0
 
-    def __init__(self, seed: int | None = None):
+    def __init__(self, seed: int | None = None, heuristic: str = "base"):
         self.rng = random.Random(seed)
+        self.heuristic = heuristic
 
     def choose_move(self, game: CheckersGame) -> list[tuple[int, int]]:
         moves = game.get_legal_moves()
@@ -55,7 +64,7 @@ class HeuristicPlayer:
             g.make_move(move)
             # evaluate() is from WHITE's perspective; flip for BLACK so that a
             # higher score always means "better for the player to move".
-            score = evaluate(g)
+            score = evaluate(g, self.heuristic)
             if player == BLACK:
                 score = 1.0 - score
             if score > best_score:
@@ -84,20 +93,33 @@ class MCTSPlayer:
         Exploration constant
     seed : int | None
         Base random seed for reproducibility
+    heuristic : str
+        Positional evaluation variant (``"base"``, ``"edge"``, or
+        ``"center"``, see ``mcts.HEURISTICS``) used by the bias term of the
+        ``"progressive"`` variant; ignored by ``"uct"`` and ``"rave"``.
     """
 
     def __init__(self, variant: str = "uct", iterations: int = 2000,
                  parallel: bool = True, num_workers: int | None = None,
-                 c: float = 1.414, seed: int | None = None):
+                 c: float = 1.414, seed: int | None = None,
+                 heuristic: str = "base"):
         self.variant = variant
         self.iterations = iterations
         self.parallel = parallel
         self.num_workers = num_workers or max(1, os.cpu_count() or 1)
         self.c = c
         self.seed = seed
+        self.heuristic = heuristic
         self._call_count = 0
         # number of tree nodes visited during the most recent choose_move call
         self.last_node_count: int = 0
+
+        # A ProcessPoolExecutor is expensive to create (especially with the
+        # "spawn" start method used on Windows), so reuse one pool for the
+        # lifetime of this player instead of recreating it on every move.
+        self._executor: ProcessPoolExecutor | None = None
+        if self.parallel and self.num_workers > 1:
+            self._executor = ProcessPoolExecutor(max_workers=self.num_workers)
 
     def choose_move(self, game: CheckersGame) -> list[tuple[int, int]]:
         move_seed = None
@@ -105,14 +127,25 @@ class MCTSPlayer:
             move_seed = self.seed + self._call_count * 1000
         self._call_count += 1
 
-        if self.parallel and self.num_workers > 1:
+        if self._executor is not None:
             move, nodes = mcts_search_parallel(
                 game, self.iterations, self.variant, self.c,
                 seed=move_seed, num_workers=self.num_workers,
+                heuristic=self.heuristic, executor=self._executor,
             )
         else:
             move, nodes = mcts_search(
                 game, self.iterations, self.variant, self.c, seed=move_seed,
+                heuristic=self.heuristic,
             )
         self.last_node_count = nodes
         return move
+
+    def close(self) -> None:
+        """Shut down the worker pool. Safe to call multiple times."""
+        if self._executor is not None:
+            self._executor.shutdown(wait=True)
+            self._executor = None
+
+    def __del__(self) -> None:
+        self.close()
