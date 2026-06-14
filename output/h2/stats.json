@@ -1,0 +1,201 @@
+{
+  "hypothesis": "h2",
+  "win_rate_threshold": 0.6,
+  "configs": [
+    {
+      "name": "rave500",
+      "p1": "rave",
+      "p2": "uct",
+      "iterations": 500,
+      "p1_heuristic": "base",
+      "p2_heuristic": "base",
+      "games": 5,
+      "p1_wins": 0,
+      "p2_wins": 4,
+      "draws": 1,
+      "p1_win_rate": 0.0,
+      "ci95_lo": 0.0,
+      "ci95_hi": 0.434,
+      "pvalue_binomial": 0.125,
+      "n_seeds": 5,
+      "seeds_p1_ahead": 0,
+      "consistent_across_seeds": false,
+      "win_rate_threshold": 0.6,
+      "win_rate_above_threshold": false,
+      "pvalue_below_0.05": false,
+      "hypothesis_holds": false,
+      "per_seed": [
+        {
+          "seed": 0,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 0,
+          "draws": 1,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 10007,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 20014,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 30021,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 40028,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        }
+      ]
+    },
+    {
+      "name": "rave1000",
+      "p1": "rave",
+      "p2": "uct",
+      "iterations": 1000,
+      "p1_heuristic": "base",
+      "p2_heuristic": "base",
+      "games": 5,
+      "p1_wins": 2,
+      "p2_wins": 3,
+      "draws": 0,
+      "p1_win_rate": 0.4,
+      "ci95_lo": 0.118,
+      "ci95_hi": 0.769,
+      "pvalue_binomial": 1.0,
+      "n_seeds": 5,
+      "seeds_p1_ahead": 2,
+      "consistent_across_seeds": false,
+      "win_rate_threshold": 0.6,
+      "win_rate_above_threshold": false,
+      "pvalue_below_0.05": false,
+      "hypothesis_holds": false,
+      "per_seed": [
+        {
+          "seed": 0,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 10007,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 20014,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 30021,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 40028,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        }
+      ]
+    },
+    {
+      "name": "rave2000",
+      "p1": "rave",
+      "p2": "uct",
+      "iterations": 2000,
+      "p1_heuristic": "base",
+      "p2_heuristic": "base",
+      "games": 5,
+      "p1_wins": 1,
+      "p2_wins": 3,
+      "draws": 1,
+      "p1_win_rate": 0.2,
+      "ci95_lo": 0.036,
+      "ci95_hi": 0.624,
+      "pvalue_binomial": 0.625,
+      "n_seeds": 5,
+      "seeds_p1_ahead": 1,
+      "consistent_across_seeds": false,
+      "win_rate_threshold": 0.6,
+      "win_rate_above_threshold": false,
+      "pvalue_below_0.05": false,
+      "hypothesis_holds": false,
+      "per_seed": [
+        {
+          "seed": 0,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 10007,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 20014,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 30021,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 40028,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 0,
+          "draws": 1,
+          "p1_win_rate": 0.0
+        }
+      ]
+    }
+  ]
+}

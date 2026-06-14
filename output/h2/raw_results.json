@@ -1,0 +1,461 @@
+[
+  {
+    "config": {
+      "name": "rave500",
+      "p1": "rave",
+      "p2": "uct",
+      "iterations": 500,
+      "p1_heuristic": "base",
+      "p2_heuristic": "base",
+      "mcts_search_units": 1000
+    },
+    "per_seed": [
+      {
+        "seed": 0,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 0,
+          "draws": 1,
+          "p1_win_rate": 0.0,
+          "avg_moves": 200.0,
+          "avg_time_s": 171.1,
+          "p1_avg_nodes": 514.0,
+          "p2_avg_nodes": 510.3,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "draw",
+              "moves": 200,
+              "time_s": 171.12,
+              "white_avg_nodes": 514.0,
+              "black_avg_nodes": 510.3
+            }
+          ]
+        }
+      },
+      {
+        "seed": 10007,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 172.0,
+          "avg_time_s": 207.8,
+          "p1_avg_nodes": 514.0,
+          "p2_avg_nodes": 513.8,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "black",
+              "moves": 172,
+              "time_s": 207.79,
+              "white_avg_nodes": 514.0,
+              "black_avg_nodes": 513.8
+            }
+          ]
+        }
+      },
+      {
+        "seed": 20014,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 72.0,
+          "avg_time_s": 100.5,
+          "p1_avg_nodes": 513.3,
+          "p2_avg_nodes": 513.2,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "black",
+              "moves": 72,
+              "time_s": 100.54,
+              "white_avg_nodes": 513.3,
+              "black_avg_nodes": 513.2
+            }
+          ]
+        }
+      },
+      {
+        "seed": 30021,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 74.0,
+          "avg_time_s": 119.0,
+          "p1_avg_nodes": 513.0,
+          "p2_avg_nodes": 513.2,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "black",
+              "moves": 74,
+              "time_s": 119.04,
+              "white_avg_nodes": 513.0,
+              "black_avg_nodes": 513.2
+            }
+          ]
+        }
+      },
+      {
+        "seed": 40028,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 108.0,
+          "avg_time_s": 155.3,
+          "p1_avg_nodes": 510.7,
+          "p2_avg_nodes": 509.9,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "black",
+              "moves": 108,
+              "time_s": 155.34,
+              "white_avg_nodes": 510.7,
+              "black_avg_nodes": 509.9
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "config": {
+      "name": "rave1000",
+      "p1": "rave",
+      "p2": "uct",
+      "iterations": 1000,
+      "p1_heuristic": "base",
+      "p2_heuristic": "base",
+      "mcts_search_units": 2000
+    },
+    "per_seed": [
+      {
+        "seed": 0,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0,
+          "avg_moves": 93.0,
+          "avg_time_s": 283.4,
+          "p1_avg_nodes": 1012.5,
+          "p2_avg_nodes": 1013.2,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "white",
+              "moves": 93,
+              "time_s": 283.37,
+              "white_avg_nodes": 1012.5,
+              "black_avg_nodes": 1013.2
+            }
+          ]
+        }
+      },
+      {
+        "seed": 10007,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0,
+          "avg_moves": 127.0,
+          "avg_time_s": 343.2,
+          "p1_avg_nodes": 1013.4,
+          "p2_avg_nodes": 1013.3,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "white",
+              "moves": 127,
+              "time_s": 343.16,
+              "white_avg_nodes": 1013.4,
+              "black_avg_nodes": 1013.3
+            }
+          ]
+        }
+      },
+      {
+        "seed": 20014,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 100.0,
+          "avg_time_s": 265.6,
+          "p1_avg_nodes": 1000.4,
+          "p2_avg_nodes": 1000.2,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "black",
+              "moves": 100,
+              "time_s": 265.59,
+              "white_avg_nodes": 1000.4,
+              "black_avg_nodes": 1000.2
+            }
+          ]
+        }
+      },
+      {
+        "seed": 30021,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 142.0,
+          "avg_time_s": 331.5,
+          "p1_avg_nodes": 1013.0,
+          "p2_avg_nodes": 1012.6,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "black",
+              "moves": 142,
+              "time_s": 331.5,
+              "white_avg_nodes": 1013.0,
+              "black_avg_nodes": 1012.6
+            }
+          ]
+        }
+      },
+      {
+        "seed": 40028,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 172.0,
+          "avg_time_s": 340.1,
+          "p1_avg_nodes": 1014.0,
+          "p2_avg_nodes": 1012.3,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "black",
+              "moves": 172,
+              "time_s": 340.13,
+              "white_avg_nodes": 1014.0,
+              "black_avg_nodes": 1012.3
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "config": {
+      "name": "rave2000",
+      "p1": "rave",
+      "p2": "uct",
+      "iterations": 2000,
+      "p1_heuristic": "base",
+      "p2_heuristic": "base",
+      "mcts_search_units": 4000
+    },
+    "per_seed": [
+      {
+        "seed": 0,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 118.0,
+          "avg_time_s": 601.3,
+          "p1_avg_nodes": 2011.7,
+          "p2_avg_nodes": 2011.4,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "black",
+              "moves": 118,
+              "time_s": 601.31,
+              "white_avg_nodes": 2011.7,
+              "black_avg_nodes": 2011.4
+            }
+          ]
+        }
+      },
+      {
+        "seed": 10007,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0,
+          "avg_moves": 91.0,
+          "avg_time_s": 518.3,
+          "p1_avg_nodes": 2011.1,
+          "p2_avg_nodes": 2010.7,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "white",
+              "moves": 91,
+              "time_s": 518.27,
+              "white_avg_nodes": 2011.1,
+              "black_avg_nodes": 2010.7
+            }
+          ]
+        }
+      },
+      {
+        "seed": 20014,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 140.0,
+          "avg_time_s": 673.3,
+          "p1_avg_nodes": 2005.8,
+          "p2_avg_nodes": 2005.6,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "black",
+              "moves": 140,
+              "time_s": 673.27,
+              "white_avg_nodes": 2005.8,
+              "black_avg_nodes": 2005.6
+            }
+          ]
+        }
+      },
+      {
+        "seed": 30021,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 108.0,
+          "avg_time_s": 632.5,
+          "p1_avg_nodes": 2012.1,
+          "p2_avg_nodes": 2011.4,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "black",
+              "moves": 108,
+              "time_s": 632.48,
+              "white_avg_nodes": 2012.1,
+              "black_avg_nodes": 2011.4
+            }
+          ]
+        }
+      },
+      {
+        "seed": 40028,
+        "summary": {
+          "p1": "rave",
+          "p2": "uct",
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 0,
+          "draws": 1,
+          "p1_win_rate": 0.0,
+          "avg_moves": 200.0,
+          "avg_time_s": 636.9,
+          "p1_avg_nodes": 2001.5,
+          "p2_avg_nodes": 1990.5,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "rave",
+              "black": "uct",
+              "winner_color": "draw",
+              "moves": 200,
+              "time_s": 636.89,
+              "white_avg_nodes": 2001.5,
+              "black_avg_nodes": 1990.5
+            }
+          ]
+        }
+      }
+    ]
+  }
+]
