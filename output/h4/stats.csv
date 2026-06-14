@@ -1,0 +1,3 @@
+name,p1,p2,iterations,p1_heuristic,p2_heuristic,games,p1_wins,p2_wins,draws,p1_win_rate,ci95_lo,ci95_hi,pvalue_binomial,n_seeds,seeds_p1_ahead,consistent_across_seeds,win_rate_threshold,win_rate_above_threshold,pvalue_below_0.05,hypothesis_holds
+heuristic_edge_vs_center,heuristic,heuristic,0,edge,center,10,8,2,0,0.8,0.49,0.943,0.10938,5,3,True,0.5,True,False,False
+progressive_edge_vs_center_2000,progressive,progressive,2000,edge,center,10,3,7,0,0.3,0.108,0.603,0.34375,5,1,False,0.5,False,False,False
