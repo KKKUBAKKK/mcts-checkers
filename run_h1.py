@@ -25,7 +25,7 @@ is fully deterministic: the same machine-independent sequence of games is
 played every time. Pass ``--workers`` to use more cores for a faster but
 machine-specific (non-reproducible) "rich" run.
 
-Time budget: default ``--time-budget-min 110`` keeps the whole run under 2h.
+Time budget: default ``--time-budget-min 80`` keeps the whole run under ~80 min.
 
 Usage
 -----
@@ -39,7 +39,7 @@ from __future__ import annotations
 
 from hypothesis_lib import ExperimentConfig, build_arg_parser, run_full_pipeline, run_stage1
 
-DEFAULT_ITERATIONS = [500, 1000, 2000, 5000, 10000]
+DEFAULT_ITERATIONS = [500, 1000, 2000, 3000, 5000]
 
 
 def build_configs(iterations_list: list[int]) -> list[ExperimentConfig]:

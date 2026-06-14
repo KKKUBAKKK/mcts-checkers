@@ -40,7 +40,7 @@ is fully deterministic: the same machine-independent sequence of games is
 played every time. Pass ``--workers`` to use more cores for a faster but
 machine-specific (non-reproducible) "rich" run.
 
-Time budget: default ``--time-budget-min 110`` keeps the whole run under 2h.
+Time budget: default ``--time-budget-min 80`` keeps the whole run under ~80 min.
 
 Usage
 -----

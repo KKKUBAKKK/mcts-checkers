@@ -219,9 +219,9 @@ def build_arg_parser(description: str, default_iterations: list[int],
     p.add_argument("--iterations", type=int, nargs="+",
                    default=default_iterations,
                    help="MCTS iteration budgets to sweep ('depths')")
-    p.add_argument("--time-budget-min", type=float, default=110,
+    p.add_argument("--time-budget-min", type=float, default=80,
                    help="Soft wall-clock budget in minutes for this run "
-                        "(default 110, i.e. just under 2h)")
+                        "(default 80)")
     p.add_argument("--min-games-per-seed", type=int, default=1,
                    help="Minimum games per seed per config "
                         "(guarantees >= seeds * this many games per config)")
