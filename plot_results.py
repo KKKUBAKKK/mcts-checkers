@@ -103,9 +103,35 @@ def plot_iterations_curve(configs: list[dict], hypothesis: str, threshold: float
     return path
 
 
+def generate_plots(stats: dict, output_dir: str) -> list[str]:
+    """Generate all plots for ``stats`` (as returned by
+    ``analyze_results.compute_stats``) into ``output_dir``.
+
+    Returns the list of written file paths (empty if there are no
+    configurations, or just the bar chart if a win-rate-vs-iterations curve
+    isn't applicable -- see :func:`plot_iterations_curve`).
+    """
+    hypothesis = stats["hypothesis"]
+    configs = stats["configs"]
+    threshold = stats.get("win_rate_threshold", 0.6)
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    if not configs:
+        return []
+
+    paths = [plot_bar_chart(configs, hypothesis, threshold, output_dir)]
+
+    curve_path = plot_iterations_curve(configs, hypothesis, threshold, output_dir)
+    if curve_path:
+        paths.append(curve_path)
+
+    return paths
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Stage 4: plot generation for H1/H2")
+        description="Stage 4: plot generation for H1-H4")
     parser.add_argument("--input", type=str, required=True,
                         help="Path to stats.json")
     parser.add_argument("--output-dir", type=str, required=True)
@@ -114,23 +140,14 @@ def main() -> None:
     with open(args.input, encoding="utf-8") as f:
         stats = json.load(f)
 
-    hypothesis = stats["hypothesis"]
-    configs = stats["configs"]
-    threshold = stats.get("win_rate_threshold", 0.6)
-
-    os.makedirs(args.output_dir, exist_ok=True)
-
-    if not configs:
+    if not stats["configs"]:
         print("No configurations found in stats.json; nothing to plot.")
         return
 
-    bar_path = plot_bar_chart(configs, hypothesis, threshold, args.output_dir)
-    print(f"Wrote {bar_path}")
-
-    curve_path = plot_iterations_curve(configs, hypothesis, threshold, args.output_dir)
-    if curve_path:
-        print(f"Wrote {curve_path}")
-    else:
+    paths = generate_plots(stats, args.output_dir)
+    for path in paths:
+        print(f"Wrote {path}")
+    if len(paths) == 1:
         print("Single iteration budget (or mixed config types); skipping "
               "win-rate-vs-iterations curve.")
 

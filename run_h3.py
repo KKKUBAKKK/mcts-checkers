@@ -13,24 +13,35 @@ per-config cost is roughly ``2 * iterations``. The default sweep spans both
 sides of the <=2000 threshold (500..10000) so ``plot_results.py``'s
 win-rate-vs-iterations curve can show the expected fading advantage.
 
-Output: ``<output-dir>/raw_results.json`` (one entry per iteration budget,
+This is a complete, self-contained pipeline run: stage 1 ("uruchomienia")
+writes ``<output-dir>/raw_results.json`` (one entry per iteration budget,
 each containing one ``run_match`` summary per base seed) plus replayable
-per-game logs under ``<output-dir>/games/``.
+per-game logs under ``<output-dir>/games/``; stages 2-4 (statistics,
+significance tests, plots -- see ``analyze_results.py``/``plot_results.py``)
+then run automatically, writing ``stats.json``/``stats.csv`` and PNGs under
+``<output-dir>/plots/``.
 
-Next pipeline stages: ``analyze_results.py`` (statistics + significance),
-then ``plot_results.py``.
+Reproducibility
+---------------
+With **no flags**, this script uses fixed defaults (base seed 0, 5 derived
+base seeds, fixed worker count -- see ``hypothesis_lib.DEFAULT_WORKERS``) and
+is fully deterministic: the same machine-independent sequence of games is
+played every time. Pass ``--workers`` to use more cores for a faster but
+machine-specific (non-reproducible) "rich" run.
+
+Time budget: default ``--time-budget-min 110`` keeps the whole run under 2h.
 
 Usage
 -----
-    python run_h3.py --workers 16 --seeds 5 --iterations 500 1000 2000 5000 10000
+    python run_h3.py
 
-This script only plans and (when run) executes games -- it does not analyze
-or plot results.
+    # faster, richer, but no longer strictly reproducible across machines:
+    python run_h3.py --workers 16 --iterations 500 1000 2000 5000 10000
 """
 
 from __future__ import annotations
 
-from hypothesis_lib import ExperimentConfig, build_arg_parser, run_stage1
+from hypothesis_lib import ExperimentConfig, build_arg_parser, run_full_pipeline, run_stage1
 
 # Both sides run MCTS, so each config costs ~2x an H1 config at the same
 # iteration count -- mirror H1's sweep so the <=2000 vs >2000 trend is
@@ -65,7 +76,8 @@ def main() -> None:
               "--iterations.")
 
     configs = build_configs(args.iterations)
-    run_stage1(args, configs)
+    raw_path = run_stage1(args, configs)
+    run_full_pipeline(raw_path, "h3", args.output_dir)
 
 
 if __name__ == "__main__":

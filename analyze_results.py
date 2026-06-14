@@ -107,6 +107,73 @@ def analyze_config(entry: dict, win_rate_threshold: float = 0.6) -> dict:
     }
 
 
+CSV_FIELDS = [
+    "name", "p1", "p2", "iterations", "p1_heuristic", "p2_heuristic",
+    "games", "p1_wins", "p2_wins", "draws", "p1_win_rate",
+    "ci95_lo", "ci95_hi", "pvalue_binomial", "n_seeds", "seeds_p1_ahead",
+    "consistent_across_seeds", "win_rate_threshold",
+    "win_rate_above_threshold", "pvalue_below_0.05", "hypothesis_holds",
+]
+
+
+def compute_stats(raw_results: list[dict], hypothesis: str) -> dict:
+    """Run :func:`analyze_config` over every entry of ``raw_results`` and
+    assemble the ``stats.json``/``stats.csv`` payload for ``hypothesis``."""
+    threshold = WIN_RATE_THRESHOLDS[hypothesis]
+    configs = [analyze_config(entry, threshold) for entry in raw_results]
+
+    stats = {"hypothesis": hypothesis, "win_rate_threshold": threshold,
+             "configs": configs}
+    if hypothesis == "h4":
+        stats["both_configs_hold"] = bool(configs) and all(
+            c["win_rate_above_threshold"] for c in configs)
+    return stats
+
+
+def write_stats(stats: dict, output_dir: str) -> tuple[str, str]:
+    """Write ``stats.json`` and ``stats.csv`` to ``output_dir``.
+
+    Returns ``(stats_path, csv_path)``.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    stats_path = os.path.join(output_dir, "stats.json")
+    csv_path = os.path.join(output_dir, "stats.csv")
+
+    with open(stats_path, "w", encoding="utf-8") as f:
+        json.dump(stats, f, indent=2)
+
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        for c in stats["configs"]:
+            writer.writerow({k: c[k] for k in CSV_FIELDS})
+
+    return stats_path, csv_path
+
+
+def print_summary(stats: dict) -> None:
+    """Print a human-readable summary of ``stats`` (as returned by
+    :func:`compute_stats`)."""
+    hypothesis = stats["hypothesis"]
+    threshold = stats["win_rate_threshold"]
+    configs = stats["configs"]
+
+    print(f"{hypothesis.upper()} statistics "
+          f"(win-rate threshold > {threshold:.0%}):\n")
+    for c in configs:
+        verdict = "HOLDS" if c["hypothesis_holds"] else "not supported"
+        print(f"  {c['name']:>28s}: {c['p1']} win rate = {c['p1_win_rate']:.1%} "
+              f"(95% CI [{c['ci95_lo']:.1%}, {c['ci95_hi']:.1%}]), "
+              f"p={c['pvalue_binomial']:.4f}, "
+              f"{c['seeds_p1_ahead']}/{c['n_seeds']} seeds favor {c['p1']} "
+              f"-> {verdict}")
+
+    if hypothesis == "h4":
+        verdict = "HOLDS" if stats["both_configs_hold"] else "not supported"
+        print(f"\n  H4 overall (edge wins >50% in both configurations) "
+              f"-> {verdict}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Stage 2+3: statistics + significance tests for H1-H4")
@@ -120,50 +187,9 @@ def main() -> None:
     with open(args.input, encoding="utf-8") as f:
         raw_results = json.load(f)
 
-    threshold = WIN_RATE_THRESHOLDS[args.hypothesis]
-    configs = [analyze_config(entry, threshold) for entry in raw_results]
-
-    out = {"hypothesis": args.hypothesis, "win_rate_threshold": threshold,
-           "configs": configs}
-    if args.hypothesis == "h4":
-        out["both_configs_hold"] = bool(configs) and all(
-            c["win_rate_above_threshold"] for c in configs)
-
-    os.makedirs(args.output_dir, exist_ok=True)
-    stats_path = os.path.join(args.output_dir, "stats.json")
-    csv_path = os.path.join(args.output_dir, "stats.csv")
-
-    with open(stats_path, "w", encoding="utf-8") as f:
-        json.dump(out, f, indent=2)
-
-    csv_fields = [
-        "name", "p1", "p2", "iterations", "p1_heuristic", "p2_heuristic",
-        "games", "p1_wins", "p2_wins", "draws", "p1_win_rate",
-        "ci95_lo", "ci95_hi", "pvalue_binomial", "n_seeds", "seeds_p1_ahead",
-        "consistent_across_seeds", "win_rate_threshold",
-        "win_rate_above_threshold", "pvalue_below_0.05", "hypothesis_holds",
-    ]
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=csv_fields)
-        writer.writeheader()
-        for c in configs:
-            writer.writerow({k: c[k] for k in csv_fields})
-
-    print(f"{args.hypothesis.upper()} statistics "
-          f"(win-rate threshold > {threshold:.0%}):\n")
-    for c in configs:
-        verdict = "HOLDS" if c["hypothesis_holds"] else "not supported"
-        print(f"  {c['name']:>28s}: {c['p1']} win rate = {c['p1_win_rate']:.1%} "
-              f"(95% CI [{c['ci95_lo']:.1%}, {c['ci95_hi']:.1%}]), "
-              f"p={c['pvalue_binomial']:.4f}, "
-              f"{c['seeds_p1_ahead']}/{c['n_seeds']} seeds favor {c['p1']} "
-              f"-> {verdict}")
-
-    if args.hypothesis == "h4":
-        verdict = "HOLDS" if out["both_configs_hold"] else "not supported"
-        print(f"\n  H4 overall (edge wins >50% in both configurations) "
-              f"-> {verdict}")
-
+    stats = compute_stats(raw_results, args.hypothesis)
+    stats_path, csv_path = write_stats(stats, args.output_dir)
+    print_summary(stats)
     print(f"\nWritten to {stats_path} and {csv_path}")
 
 

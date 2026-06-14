@@ -1,0 +1,378 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[polish]{babel}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    columns=fullflexible,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+}
+
+\title{Raport końcowy \\
+\large Zastosowanie Monte Carlo Tree Search (MCTS/UCT) do gry w warcaby 10$\times$10 bez obowiązkowego bicia z damkami bijącymi po całej diagonali}
+\author{Jakub Kindracki \and Wiktor Kobielski}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Niniejszy dokument jest szkieletem (template) raportu końcowego. W obecnej
+wersji opisuje wyłącznie \emph{plan i metodykę testów} dla hipotez H1--H4 --
+konfiguracje eksperymentów, sposób ich uruchamiania (pipeline
+runy~$\to$~statystyki~$\to$~testy istotności~$\to$~wykresy), kryteria
+potwierdzenia hipotez oraz zapewnienie powtarzalności. Sekcje z wynikami
+(tabele, wykresy, dyskusja) zostaną uzupełnione po wykonaniu eksperymentów.
+\end{abstract}
+
+\tableofcontents
+
+\section{Wprowadzenie}
+
+\subsection{Zakres tego dokumentu}
+
+Ten plik (\texttt{documentation/final/raport.tex}) jest \emph{szablonem}
+raportu końcowego. Sekcja~\ref{sec:metodologia} opisuje wspólną
+infrastrukturę eksperymentalną, a sekcje~\ref{sec:h1}--\ref{sec:h4}
+opisują -- dla każdej z czterech hipotez badawczych -- dokładny plan testów:
+jakie konfiguracje graczy są porównywane, ile partii zostanie rozegranych,
+jakie kryterium decyduje o potwierdzeniu hipotezy oraz jakie artefakty
+(pliki JSON/CSV/PNG) powstaną. Wyniki (sekcje ,,Wyniki'' w każdej
+podsekcji) są obecnie placeholderami -- zostaną wypełnione po uruchomieniu
+skryptów \texttt{run\_h1.py}--\texttt{run\_h4.py}.
+
+\subsection{Przypomnienie hipotez}
+
+\begin{description}[leftmargin=2.2cm,style=nextline]
+    \item[H1 (UCT vs heurystyka).] Czysty UCT z wystarczającym limitem
+        iteracji ($\geq 10\,000$ na ruch) gra istotnie skuteczniej od
+        gracza czysto heurystycznego, osiągając $> 60\%$ wygranych w
+        meczu z naprzemienną zmianą kolorów.
+    \item[H2 (RAVE poprawia UCT).] UCT z rozszerzeniem RAVE wygrywa
+        $> 60\%$ partii z czystym UCT przy tym samym limicie iteracji.
+    \item[H3 (Progressive bias poprawia UCT).] UCT z heurystycznym
+        progressive bias wygrywa $> 60\%$ partii z czystym UCT, a jego
+        przewaga jest największa przy małym limicie iteracji
+        ($\leq 2\,000$/ruch); wraz ze wzrostem liczby iteracji oczekujemy
+        zaniku przewagi.
+    \item[H4 (krawędzie vs środek planszy).] Heurystyki premiujące figury
+        przy krawędzi planszy są skuteczniejsze niż heurystyki premiujące
+        figury w centrum -- weryfikacja w dwóch konfiguracjach
+        (gracz heurystyczny oraz UCT + progressive bias), oba z wariantem
+        ,,krawędzie'' vs ,,środek''. Hipoteza potwierdzona, jeśli wariant
+        ,,krawędzie'' wygrywa $> 50\%$ partii w \emph{obu} konfiguracjach.
+\end{description}
+
+\section{Metodologia i infrastruktura wspólna}
+\label{sec:metodologia}
+
+\subsection{Pipeline eksperymentalny}
+
+Każda hipoteza ($H_i$, $i=1,\dots,4$) jest weryfikowana przez jeden
+samodzielny skrypt \texttt{run\_h\{i\}.py}, który realizuje cały
+pipeline w jednym przebiegu:
+
+\begin{enumerate}
+    \item \textbf{Uruchomienia} (\emph{runs}) -- rozegranie partii
+        AI vs AI dla wszystkich konfiguracji danej hipotezy, zapis
+        surowych wyników do \texttt{output/h\{i\}/raw\_results.json}
+        oraz replayable logów partii do \texttt{output/h\{i\}/games/}
+        (\texttt{hypothesis\_lib.run\_stage1}).
+    \item \textbf{Statystyki} -- dla każdej konfiguracji: łączny
+        odsetek wygranych $p_1$ (wraz z 95\% przedziałem ufności
+        Wilsona), liczba partii, remisów itd.
+        (\texttt{analyze\_results.compute\_stats}).
+    \item \textbf{Testy hipotez i istotności} -- dwustronny dokładny test
+        dwumianowy przeciwko $p_0=0{,}5$ (na partiach zdecydowanych,
+        bez remisów) oraz test spójności między ziarnami (czy $p_1$
+        wygrywa w większości ziaren bazowych). Hipoteza jest uznawana za
+        potwierdzoną, gdy: $p_1\text{-win-rate} > \text{próg}$ \textbf{i}
+        $p\text{-value} < 0{,}05$ \textbf{i} wynik jest spójny między
+        ziarnami (zob. \texttt{analyze\_results.analyze\_config}). Próg
+        wynosi $60\%$ dla H1--H3 oraz $50\%$ dla H4 (zgodnie z
+        formułowaniem hipotez w konspekcie).
+    \item \textbf{Wykresy} -- wykres słupkowy odsetka wygranych z
+        przedziałami ufności (oraz liniami referencyjnymi $0{,}5$ i
+        progu) dla każdej konfiguracji, a dla hipotez ze sweepem
+        budżetu iteracji ($H_1$--$H_3$) dodatkowo wykres
+        odsetek-wygranych-vs-liczba-iteracji z pasmem CI
+        (\texttt{plot\_results.generate\_plots}). Pliki PNG trafiają do
+        \texttt{output/h\{i\}/plots/}.
+\end{enumerate}
+
+Wszystkie cztery etapy wykonują się automatycznie w ramach jednego
+wywołania, tj. \texttt{python run\_h\{i\}.py} bez żadnych dodatkowych
+flag produkuje kompletny zestaw artefaktów: \texttt{raw\_results.json},
+\texttt{stats.json}, \texttt{stats.csv} oraz pliki PNG w
+\texttt{plots/}.
+
+\subsection{Powtarzalność (reprodukowalność)}
+\label{sec:reprodukowalnosc}
+
+Zgodnie z konspektem każda konfiguracja eksperymentu jest powtarzana dla
+$\geq 5$ różnych ziaren bazowych
+(\texttt{hypothesis\_lib.derive\_seeds}, domyślnie ziarna bazowe
+$0, 10007, 20014, 30021, 40028$ -- pochodne ziarna pochodne ziarna
+bazowego $0$). Każdy gracz przyjmuje parametr \texttt{seed}; ziarna
+poszczególnych partii i ruchów są wyprowadzane deterministycznie z ziarna
+bazowego (\texttt{experiments.run\_match}).
+
+Root-parallel MCTS dzieli budżet iteracji między procesy robocze i
+przypisuje każdemu procesowi ziarno zależne od jego indeksu, więc liczba
+workerów jest częścią tego, co determinuje wynik wyszukiwania. Aby
+domyślne (bezargumentowe) wywołanie \texttt{python run\_h\{i\}.py} było w
+pełni powtarzalne niezależnie od liczby rdzeni dostępnej maszyny, domyślna
+liczba workerów jest ustalonym stałą (\texttt{hypothesis\_lib.\allowbreak
+DEFAULT\_WORKERS = 4}), a nie \texttt{os.cpu\_count()}. Flaga
+\texttt{--workers N} pozwala przyspieszyć (i ,,zbogacić'') eksperyment na
+maszynach wieloprocesorowych, kosztem utraty ścisłej powtarzalności
+między maszynami o różnej liczbie rdzeni.
+
+Każda rozegrana partia jest zapisywana w formacie tekstowym (sekwencja
+ruchów + metadane: gracze, heurystyki, ziarna, liczba odwiedzonych węzłów
+drzewa) i może zostać odtworzona za pomocą
+\texttt{experiments.replay\_game\_log}.
+
+\subsection{Budżet czasowy}
+
+Każdy skrypt \texttt{run\_h\{i\}.py} ma domyślny miękki budżet czasowy
+\texttt{--time-budget-min~110} (czyli ok. 1h50min), tak aby cały
+pipeline (uruchomienia + statystyki + wykresy) zmieścił się w limicie
+2 godzin na hipotezę. Liczba partii na ziarno jest dynamicznie
+dopasowywana do tego budżetu na podstawie krótkiej kalibracji prędkości
+MCTS na danej maszynie (\texttt{hypothesis\_lib.\allowbreak
+calibrate\_seconds\_per\_iteration},
+\texttt{allocate\_games\_per\_seed}) -- każda konfiguracja otrzymuje co
+najmniej $5 \times 1 = 5$ partii (1 partia/ziarno $\times$ 5 ziaren), a
+pozostały budżet jest zachłannie rozdzielany między konfiguracje
+(do max. 10 partii/ziarno = 50 partii/konfigurację).
+
+\subsection{Mierzone wielkości}
+
+Dla każdej partii rejestrowane są: zwycięzca (lub remis), liczba ruchów,
+czas trwania oraz średnia liczba odwiedzonych węzłów drzewa MCTS na ruch
+(\texttt{last\_node\_count} / \texttt{mcts.\_count\_nodes}) -- miara
+,,wysiłku obliczeniowego'' wyszukiwania, zwracana w
+\texttt{stats.json}/\texttt{stats.csv} jako \texttt{p1\_avg\_nodes} /
+\texttt{p2\_avg\_nodes} (w surowych wynikach) i wykorzystywana do
+interpretacji wyników (np. czy przewaga UCT+RAVE/progressive bias wynika
+z efektywniejszego przeszukiwania, a nie tylko z większego budżetu).
+
+
+\section{H1: UCT vs heurystyka}
+\label{sec:h1}
+
+\subsection{Plan testów}
+
+\textbf{Skrypt:} \texttt{run\_h1.py} (domyślny katalog wyjściowy:
+\texttt{output/h1/}).
+
+\textbf{Porównywani gracze:} \texttt{MCTSPlayer(variant="uct")} ($p_1$)
+vs \texttt{HeuristicPlayer} ($p_2$, heurystyka \texttt{"base"}).
+
+\textbf{Sweep budżetu iteracji ($p_1$):}
+$\{500,\ 1\,000,\ 2\,000,\ 5\,000,\ 10\,000\}$ -- pięć konfiguracji
+\texttt{uct500}, \dots, \texttt{uct10000}. Tylko $p_1$ wykonuje
+przeszukiwanie MCTS (\texttt{mcts\_search\_units = iterations}), więc
+koszt konfiguracji rośnie liniowo z liczbą iteracji. Wartość
+$10\,000$ odpowiada literalnemu warunkowi H1 ($\geq 10\,000$/ruch).
+
+\textbf{Liczba partii:} każda konfiguracja $\geq 5$ ziaren bazowych
+$\times \geq 1$ partia/ziarno (kolory zamieniane między parami partii w
+ramach \texttt{run\_match}); tańsze konfiguracje (np. \texttt{uct500})
+otrzymają do 50 partii w ramach dostępnego budżetu czasowego, droższe
+(\texttt{uct10000}) co najmniej 5 partii.
+
+\textbf{Kryterium potwierdzenia:} dla danej konfiguracji H1 jest uznana za
+potwierdzoną, gdy odsetek wygranych UCT $> 60\%$, $p$-value (dwustronny
+test dwumianowy vs. $0{,}5$) $< 0{,}05$ i UCT wygrywa w większości z $\geq
+5$ ziaren. Oczekiwany wynik: hipoteza potwierdzona przy $10\,000$
+iteracjach (i prawdopodobnie przy mniejszych budżetach).
+
+\textbf{Artefakty:}
+\begin{itemize}
+    \item \texttt{output/h1/raw\_results.json} -- surowe wyniki per
+        konfiguracja $\times$ ziarno.
+    \item \texttt{output/h1/games/*.txt} -- replayable logi partii.
+    \item \texttt{output/h1/stats.json}, \texttt{stats.csv} -- statystyki
+        i werdykty per konfiguracja.
+    \item \texttt{output/h1/plots/h1\_winrate\_bar.png} -- odsetek
+        wygranych UCT z 95\% CI per konfiguracja, z liniami
+        referencyjnymi $0{,}5$ i $0{,}6$.
+    \item \texttt{output/h1/plots/h1\_winrate\_vs\_iterations.png} --
+        odsetek wygranych UCT vs. budżet iteracji (skala logarytmiczna),
+        z pasmem 95\% CI.
+\end{itemize}
+
+\subsection{Wyniki}
+
+\textit{[TODO: tabela \texttt{stats.csv} oraz wykresy z
+\texttt{output/h1/plots/} po wykonaniu \texttt{python run\_h1.py}.]}
+
+
+\section{H2: UCT + RAVE vs UCT}
+\label{sec:h2}
+
+\subsection{Plan testów}
+
+\textbf{Skrypt:} \texttt{run\_h2.py} (domyślny katalog wyjściowy:
+\texttt{output/h2/}).
+
+\textbf{Porównywani gracze:} \texttt{MCTSPlayer(variant="rave")} ($p_1$)
+vs \texttt{MCTSPlayer(variant="uct")} ($p_2$), \textbf{przy tym samym
+budżecie iteracji} dla obu stron.
+
+\textbf{Sweep budżetu iteracji (wspólny dla obu stron):}
+$\{500,\ 1\,000,\ 2\,000,\ 5\,000\}$ -- cztery konfiguracje
+\texttt{rave500}, \dots, \texttt{rave5000}. Obie strony wykonują
+przeszukiwanie MCTS (\texttt{mcts\_search\_units = 2 * iterations}), więc
+koszt konfiguracji jest ok. dwukrotnie wyższy niż analogicznej
+konfiguracji H1 -- stąd mniejszy (4-elementowy) sweep, aby zmieścić się w
+budżecie 2h.
+
+\textbf{Liczba partii:} analogicznie do H1 -- $\geq 5$ ziaren $\times \geq
+1$ partia/ziarno, do 50 partii na konfigurację w ramach budżetu czasowego.
+
+\textbf{Kryterium potwierdzenia:} RAVE wygrywa $> 60\%$ partii z UCT przy
+tym samym budżecie, $p < 0{,}05$, spójnie między ziarnami.
+
+\textbf{Artefakty:} analogicznie do H1 --
+\texttt{output/h2/\{raw\_results.json, stats.json, stats.csv\}},
+\texttt{output/h2/games/*.txt},
+\texttt{output/h2/plots/\{h2\_winrate\_bar.png,
+h2\_winrate\_vs\_iterations.png\}}.
+
+\subsection{Wyniki}
+
+\textit{[TODO: tabela \texttt{stats.csv} oraz wykresy z
+\texttt{output/h2/plots/} po wykonaniu \texttt{python run\_h2.py}.]}
+
+
+\section{H3: UCT + progressive bias vs UCT}
+\label{sec:h3}
+
+\subsection{Plan testów}
+
+\textbf{Skrypt:} \texttt{run\_h3.py} (domyślny katalog wyjściowy:
+\texttt{output/h3/}).
+
+\textbf{Porównywani gracze:} \texttt{MCTSPlayer(variant="progressive")}
+($p_1$, heurystyka \texttt{"base"} jako składnik biasu $h(\text{stan})$)
+vs \texttt{MCTSPlayer(variant="uct")} ($p_2$), przy tym samym budżecie
+iteracji.
+
+\textbf{Sweep budżetu iteracji (wspólny dla obu stron):}
+$\{500,\ 1\,000,\ 2\,000,\ 5\,000,\ 10\,000\}$ -- pięć konfiguracji
+\texttt{progressive500}, \dots, \texttt{progressive10000}
+(\texttt{mcts\_search\_units = 2 * iterations}, jak w H2). Sweep
+obejmuje wartości $\leq 2\,000$ \emph{i} $> 2\,000$, aby na wykresie
+odsetek-wygranych-vs-iteracje pokazać oczekiwany \emph{zanik przewagi}
+progressive bias przy większych budżetach.
+
+\textbf{Liczba partii:} analogicznie do H1/H2 -- $\geq 5$ ziaren $\times
+\geq 1$ partia/ziarno, do 50 partii na konfigurację w ramach budżetu
+czasowego.
+
+\textbf{Kryterium potwierdzenia:} dla każdej konfiguracji -- progressive
+bias wygrywa $> 60\%$ partii z UCT, $p < 0{,}05$, spójnie między ziarnami.
+Dodatkowo (analiza opisowa, nie pojedynczy test statystyczny): czy odsetek
+wygranych progressive bias maleje monotonicznie (lub przynajmniej
+generalnie spada) ze wzrostem budżetu iteracji, z największą przewagą przy
+$\leq 2\,000$ iteracjach -- widoczne na wykresie
+\texttt{h3\_winrate\_vs\_iterations.png}.
+
+\textbf{Artefakty:} analogicznie do H1 --
+\texttt{output/h3/\{raw\_results.json, stats.json, stats.csv\}},
+\texttt{output/h3/games/*.txt},
+\texttt{output/h3/plots/\{h3\_winrate\_bar.png,
+h3\_winrate\_vs\_iterations.png\}}.
+
+\subsection{Wyniki}
+
+\textit{[TODO: tabela \texttt{stats.csv} oraz wykresy z
+\texttt{output/h3/plots/} po wykonaniu \texttt{python run\_h3.py}. W
+szczególności: czy krzywa odsetka wygranych vs. iteracje jest malejąca, i
+czy przewaga jest największa przy $\leq 2\,000$ iteracjach.]}
+
+
+\section{H4: krawędzie vs środek planszy}
+\label{sec:h4}
+
+\subsection{Plan testów}
+
+\textbf{Skrypt:} \texttt{run\_h4.py} (domyślny katalog wyjściowy:
+\texttt{output/h4/}).
+
+Hipoteza jest weryfikowana w \textbf{dwóch konfiguracjach}, w obu wariant
+,,krawędzie'' (\texttt{heuristic="edge"}) jest $p_1$, a wariant ,,środek''
+(\texttt{heuristic="center"}) jest $p_2$:
+
+\begin{enumerate}
+    \item \textbf{\texttt{heuristic\_edge\_vs\_center}} --
+        \texttt{HeuristicPlayer(heuristic="edge")} vs
+        \texttt{HeuristicPlayer(heuristic="center")}. Żadna ze stron nie
+        wykonuje MCTS (\texttt{mcts\_search\_units = 0}), więc ta
+        konfiguracja jest praktycznie darmowa -- otrzymuje maksymalną
+        liczbę partii dopuszczalną przez \texttt{--max-games-per-seed}
+        (domyślnie do 50).
+    \item \textbf{\texttt{progressive\_edge\_vs\_center\_2000}} --
+        \texttt{MCTSPlayer(variant="progressive", heuristic="edge")} vs
+        \texttt{MCTSPlayer(variant="progressive", heuristic="center")},
+        przy budżecie $2\,000$ iteracji (\texttt{mcts\_search\_units =
+        2 * iterations = 4000}) -- wartość $2\,000$ leży w zakresie
+        ,,małego budżetu'' z H3, gdzie wpływ biasu $h$ jest największy.
+\end{enumerate}
+
+\textbf{Liczba partii:} obie konfiguracje $\geq 5$ ziaren $\times \geq 1$
+partia/ziarno; konfiguracja heurystyczna (1) skaluje się do limitu
+\texttt{--max-games-per-seed} (domyślnie 50 partii), konfiguracja
+progressive (2) -- analogicznie do H1--H3, w ramach pozostałego budżetu
+czasowego.
+
+\textbf{Kryterium potwierdzenia:} H4 jest uznana za potwierdzoną, gdy w
+\emph{obu} konfiguracjach wariant ,,krawędzie'' wygrywa $> 50\%$ partii
+(\texttt{stats.json: both\_configs\_hold}); per-konfiguracyjny
+\texttt{hypothesis\_holds} dodatkowo wymaga $p < 0{,}05$ i spójności
+między ziarnami (próg $50\%$, nie $60\%$, w odróżnieniu od H1--H3).
+
+\textbf{Artefakty:}
+\texttt{output/h4/\{raw\_results.json, stats.json, stats.csv\}},
+\texttt{output/h4/games/*.txt},
+\texttt{output/h4/plots/h4\_winrate\_bar.png} (wykres
+odsetek-wygranych-vs-iteracje nie jest generowany dla H4, ponieważ
+konfiguracje mieszają różne typy graczy i budżety iteracji).
+
+\subsection{Wyniki}
+
+\textit{[TODO: tabela \texttt{stats.csv} oraz wykres z
+\texttt{output/h4/plots/} po wykonaniu \texttt{python run\_h4.py}. W
+szczególności wartość \texttt{both\_configs\_hold} ze \texttt{stats.json}.]}
+
+
+\section{Testy z udziałem ludzi}
+
+\textit{[TODO: opis przebiegu testów z $\geq 5$ osobami, ankieta,
+podsumowanie wyników -- po przeprowadzeniu testów z wykorzystaniem
+interfejsu Flask (\texttt{app.py}).]}
+
+
+\section{Podsumowanie}
+
+\textit{[TODO: zbiorcze podsumowanie wyników H1--H4 oraz testów z
+udziałem ludzi, wnioski, ograniczenia i propozycje dalszych badań.]}
+
+\end{document}

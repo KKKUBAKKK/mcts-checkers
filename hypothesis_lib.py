@@ -36,6 +36,16 @@ from experiments import run_match
 from game import CheckersGame
 from mcts import mcts_search_parallel
 
+# Root-parallel MCTS splits ``iterations`` across ``num_workers`` processes
+# and assigns each worker a seed derived from the search seed and its worker
+# index (see ``mcts.mcts_search_parallel``), so the *number* of workers is
+# part of what makes a search reproducible -- not just the seed. To make the
+# no-flags default invocation of run_h1..run_h4 reproducible across machines
+# with different core counts, the CLI default is a fixed constant rather than
+# ``os.cpu_count()``. Pass ``--workers`` explicitly for faster (but then
+# machine-specific) runs.
+DEFAULT_WORKERS = 4
+
 
 # ──────────────────────────────────────── seeds
 
@@ -199,9 +209,10 @@ def run_config(cfg: ExperimentConfig, seeds: list[int], games_per_seed: int,
 def build_arg_parser(description: str, default_iterations: list[int],
                      default_output_dir: str) -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=description)
-    p.add_argument("--workers", type=int, default=None,
+    p.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
                    help="CPU worker processes for root-parallel MCTS "
-                        "(default: CPU count)")
+                        f"(default: {DEFAULT_WORKERS}, fixed for "
+                        "reproducibility -- changing this changes results)")
     p.add_argument("--seeds", type=int, default=5,
                    help="Number of base seeds (>=5 recommended)")
     p.add_argument("--base-seed", type=int, default=0)
@@ -242,7 +253,7 @@ def run_stage1(args: argparse.Namespace, configs: list[ExperimentConfig]) -> str
     games_dir = os.path.join(output_dir, "games")
     os.makedirs(games_dir, exist_ok=True)
 
-    workers = args.workers or max(1, os.cpu_count() or 1)
+    workers = args.workers
     print(f"Calibrating: {args.calibration_iterations} UCT iterations on "
           f"{workers} worker(s)...")
     sec_per_iter = calibrate_seconds_per_iteration(args.calibration_iterations, workers)
@@ -282,3 +293,31 @@ def run_stage1(args: argparse.Namespace, configs: list[ExperimentConfig]) -> str
     print(f"Raw results written to {raw_path}")
     print(f"Total elapsed: {(time.time() - start) / 60:.1f} min")
     return raw_path
+
+
+def run_full_pipeline(raw_path: str, hypothesis: str, output_dir: str) -> None:
+    """Stages 2-4 ("statystyki" -> "testy hipotez i istotności" ->
+    "generowanie wykresów"), run immediately after :func:`run_stage1` so a
+    single no-flags command (``python run_h1.py`` etc.) executes the whole
+    runs -> statistics -> hypothesis tests -> plots pipeline.
+
+    Writes ``<output_dir>/stats.json`` and ``stats.csv`` (see
+    ``analyze_results.py``) and PNG plots under ``<output_dir>/plots/`` (see
+    ``plot_results.py``).
+    """
+    # Imported lazily: analyze_results imports from this module at module
+    # load time, so importing it back at module level here would be circular.
+    from analyze_results import compute_stats, print_summary, write_stats
+    from plot_results import generate_plots
+
+    with open(raw_path, encoding="utf-8") as f:
+        raw_results = json.load(f)
+
+    stats = compute_stats(raw_results, hypothesis)
+    stats_path, csv_path = write_stats(stats, output_dir)
+    print_summary(stats)
+    print(f"\nWritten to {stats_path} and {csv_path}")
+
+    plots_dir = os.path.join(output_dir, "plots")
+    for path in generate_plots(stats, plots_dir):
+        print(f"Wrote {path}")

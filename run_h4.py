@@ -25,23 +25,34 @@ within each seed's games, via ``experiments.run_match``):
 The default iteration budget (2000) sits at the H3 "small budget" end where
 the progressive-bias term has the most influence.
 
-Output: ``<output-dir>/raw_results.json`` plus replayable per-game logs
-under ``<output-dir>/games/``.
+This is a complete, self-contained pipeline run: stage 1 ("uruchomienia")
+writes ``<output-dir>/raw_results.json`` plus replayable per-game logs under
+``<output-dir>/games/``; stages 2-4 (statistics, significance tests, plots --
+see ``analyze_results.py``/``plot_results.py``) then run automatically,
+writing ``stats.json``/``stats.csv`` (including the H4-specific
+``both_configs_hold`` verdict) and PNGs under ``<output-dir>/plots/``.
 
-Next pipeline stages: ``analyze_results.py`` (statistics + significance),
-then ``plot_results.py``.
+Reproducibility
+---------------
+With **no flags**, this script uses fixed defaults (base seed 0, 5 derived
+base seeds, fixed worker count -- see ``hypothesis_lib.DEFAULT_WORKERS``) and
+is fully deterministic: the same machine-independent sequence of games is
+played every time. Pass ``--workers`` to use more cores for a faster but
+machine-specific (non-reproducible) "rich" run.
+
+Time budget: default ``--time-budget-min 110`` keeps the whole run under 2h.
 
 Usage
 -----
-    python run_h4.py --workers 16 --seeds 5 --iterations 2000
+    python run_h4.py
 
-This script only plans and (when run) executes games -- it does not analyze
-or plot results.
+    # faster, richer, but no longer strictly reproducible across machines:
+    python run_h4.py --workers 16 --iterations 2000
 """
 
 from __future__ import annotations
 
-from hypothesis_lib import ExperimentConfig, build_arg_parser, run_stage1
+from hypothesis_lib import ExperimentConfig, build_arg_parser, run_full_pipeline, run_stage1
 
 DEFAULT_ITERATIONS = [2000]
 
@@ -78,7 +89,8 @@ def main() -> None:
     args = parser.parse_args()
 
     configs = build_configs(args.iterations)
-    run_stage1(args, configs)
+    raw_path = run_stage1(args, configs)
+    run_full_pipeline(raw_path, "h4", args.output_dir)
 
 
 if __name__ == "__main__":
