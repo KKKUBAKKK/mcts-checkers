@@ -151,6 +151,17 @@ def _move_key(move: list[tuple[int, int]]) -> tuple[tuple[int, int], ...]:
     return tuple(move)
 
 
+def _count_nodes(root: MCTSNode) -> int:
+    """Total number of nodes in the search tree (i.e. nodes visited/expanded)."""
+    count = 0
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        count += 1
+        stack.extend(node.children)
+    return count
+
+
 def _backpropagate(node: MCTSNode, result: float,
                    variant: str,
                    sim_moves: list[tuple[tuple[int, int], ...]] | None = None) -> None:
@@ -178,8 +189,13 @@ def _backpropagate(node: MCTSNode, result: float,
 
 
 def mcts_search(game: CheckersGame, iterations: int, variant: str = "uct",
-                c: float = 1.414, seed: int | None = None) -> list[tuple[int, int]]:
-    """Run MCTS and return the best move."""
+                c: float = 1.414, seed: int | None = None
+                ) -> tuple[list[tuple[int, int]], int]:
+    """Run MCTS and return ``(best_move, num_nodes)``.
+
+    ``num_nodes`` is the number of tree nodes visited (expanded) during the
+    search — used as a search-effort metric in experiments.
+    """
     rng = random.Random(seed)
     root = MCTSNode(game.clone())
 
@@ -210,16 +226,21 @@ def mcts_search(game: CheckersGame, iterations: int, variant: str = "uct",
 
     if not root.children:
         moves = game.get_legal_moves()
-        return moves[0] if moves else []
+        return (moves[0] if moves else []), _count_nodes(root)
 
     best = max(root.children, key=lambda ch: ch.visits)
-    return best.move
+    return best.move, _count_nodes(root)
 
 
 # ──────────────────────────── worker for root parallelisation
 
-def _worker(args: tuple) -> dict[str, int]:
-    """Run MCTS in a subprocess; return visit counts keyed by move string."""
+def _worker(args: tuple) -> dict:
+    """Run MCTS in a subprocess.
+
+    Returns ``{"counts": {move_str: visits}, "nodes": int}`` — per-move visit
+    counts (aggregated across workers for move selection) and the number of
+    tree nodes this worker visited.
+    """
     game_board, current_player, move_count, max_moves, iterations, variant, c, seed = args
     game = CheckersGame.__new__(CheckersGame)
     game.board = game_board
@@ -257,14 +278,19 @@ def _worker(args: tuple) -> dict[str, int]:
     for ch in root.children:
         key = str(ch.move)
         counts[key] = ch.visits
-    return counts
+    return {"counts": counts, "nodes": _count_nodes(root)}
 
 
 def mcts_search_parallel(game: CheckersGame, iterations: int,
                          variant: str = "uct", c: float = 1.414,
                          seed: int | None = None,
-                         num_workers: int = 4) -> list[tuple[int, int]]:
-    """Root-parallel MCTS: split iterations across workers, aggregate visits."""
+                         num_workers: int = 4
+                         ) -> tuple[list[tuple[int, int]], int]:
+    """Root-parallel MCTS: split iterations across workers, aggregate visits.
+
+    Returns ``(best_move, num_nodes)`` where ``num_nodes`` is the total number
+    of tree nodes visited summed across all worker trees.
+    """
     base_seed = seed if seed is not None else random.randint(0, 2**31)
     per_worker = iterations // num_workers
     remainder = iterations % num_workers
@@ -283,14 +309,16 @@ def mcts_search_parallel(game: CheckersGame, iterations: int,
         ))
 
     aggregated: dict[str, int] = {}
+    total_nodes = 0
     with ProcessPoolExecutor(max_workers=len(args_list)) as executor:
         for result in executor.map(_worker, args_list):
-            for move_str, count in result.items():
+            total_nodes += result["nodes"]
+            for move_str, count in result["counts"].items():
                 aggregated[move_str] = aggregated.get(move_str, 0) + count
 
     if not aggregated:
         moves = game.get_legal_moves()
-        return moves[0] if moves else []
+        return (moves[0] if moves else []), total_nodes
 
     best_move_str = max(aggregated, key=lambda k: aggregated[k])
 
@@ -298,7 +326,7 @@ def mcts_search_parallel(game: CheckersGame, iterations: int,
     legal = game.get_legal_moves()
     for m in legal:
         if str(m) == best_move_str:
-            return m
+            return m, total_nodes
 
     # fallback
-    return legal[0] if legal else []
+    return (legal[0] if legal else []), total_nodes

@@ -13,14 +13,13 @@ import os
 import random
 from typing import Optional
 
-from game import (
-    CheckersGame, WHITE, BLACK, BOARD_SIZE,
-    WHITE_PIECE, WHITE_KING, BLACK_PIECE, BLACK_KING,
-)
+from game import CheckersGame, WHITE, BLACK
 from mcts import mcts_search, mcts_search_parallel, evaluate
 
 
 class RandomPlayer:
+    last_node_count: int = 0
+
     def __init__(self, seed: int | None = None):
         self.rng = random.Random(seed)
 
@@ -30,14 +29,17 @@ class RandomPlayer:
 
 
 class HeuristicPlayer:
-    """One-ply greedy player using piece-value + positional evaluation.
+    """One-ply greedy player using the shared static evaluator.
 
-    Evaluation favours:
-    - Material (kings worth 3x a piece)
-    - Advancement (pieces closer to promotion)
-    - Center control
-    - King mobility
+    Uses exactly the same evaluation function ``mcts.evaluate`` that the
+    progressive-bias MCTS variant uses as its heuristic term ``h(state)``,
+    so that comparisons between the heuristic player and progressive bias are
+    consistent (per the project konspekt). The evaluation is a linear
+    combination of material (piece = 1.0, king = 3.0) and a small advancement
+    bonus, returned normalised as ``white / (white + black)`` in ``[0, 1]``.
     """
+
+    last_node_count: int = 0
 
     def __init__(self, seed: int | None = None):
         self.rng = random.Random(seed)
@@ -51,7 +53,11 @@ class HeuristicPlayer:
         for move in moves:
             g = game.clone()
             g.make_move(move)
-            score = self._evaluate(g, player)
+            # evaluate() is from WHITE's perspective; flip for BLACK so that a
+            # higher score always means "better for the player to move".
+            score = evaluate(g)
+            if player == BLACK:
+                score = 1.0 - score
             if score > best_score:
                 best_score = score
                 best_moves = [move]
@@ -59,33 +65,6 @@ class HeuristicPlayer:
                 best_moves.append(move)
 
         return self.rng.choice(best_moves)
-
-    @staticmethod
-    def _evaluate(game: CheckersGame, player: int) -> float:
-        score = 0.0
-        center = BOARD_SIZE / 2 - 0.5
-        for r in range(BOARD_SIZE):
-            for c in range(BOARD_SIZE):
-                p = game.board[r][c]
-                if p == 0:
-                    continue
-                piece_player = WHITE if p > 0 else BLACK
-                sign = 1.0 if piece_player == player else -1.0
-                # material
-                if abs(p) == 1:
-                    val = 1.0
-                    # advancement bonus
-                    if piece_player == WHITE:
-                        val += 0.1 * (BOARD_SIZE - 1 - r)
-                    else:
-                        val += 0.1 * r
-                else:
-                    val = 3.0
-                # center control
-                dist = abs(c - center) + abs(r - center)
-                val += 0.05 * (BOARD_SIZE - dist)
-                score += sign * val
-        return score
 
 
 class MCTSPlayer:
@@ -117,6 +96,8 @@ class MCTSPlayer:
         self.c = c
         self.seed = seed
         self._call_count = 0
+        # number of tree nodes visited during the most recent choose_move call
+        self.last_node_count: int = 0
 
     def choose_move(self, game: CheckersGame) -> list[tuple[int, int]]:
         move_seed = None
@@ -125,10 +106,13 @@ class MCTSPlayer:
         self._call_count += 1
 
         if self.parallel and self.num_workers > 1:
-            return mcts_search_parallel(
+            move, nodes = mcts_search_parallel(
                 game, self.iterations, self.variant, self.c,
                 seed=move_seed, num_workers=self.num_workers,
             )
-        return mcts_search(
-            game, self.iterations, self.variant, self.c, seed=move_seed,
-        )
+        else:
+            move, nodes = mcts_search(
+                game, self.iterations, self.variant, self.c, seed=move_seed,
+            )
+        self.last_node_count = nodes
+        return move
