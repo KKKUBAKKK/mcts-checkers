@@ -1,0 +1,5 @@
+name,p1,p2,iterations,p1_heuristic,p2_heuristic,games,p1_wins,p2_wins,draws,p1_win_rate,ci95_lo,ci95_hi,pvalue_binomial,n_seeds,seeds_p1_ahead,consistent_across_seeds,win_rate_threshold,win_rate_above_threshold,pvalue_below_0.05,hypothesis_holds
+progressive500,progressive,uct,500,base,base,5,2,2,1,0.4,0.118,0.769,1.0,5,2,False,0.6,False,False,False
+progressive1000,progressive,uct,1000,base,base,5,4,1,0,0.8,0.376,0.964,0.375,5,4,True,0.6,True,False,False
+progressive2000,progressive,uct,2000,base,base,5,4,1,0,0.8,0.376,0.964,0.375,5,4,True,0.6,True,False,False
+progressive4000,progressive,uct,4000,base,base,5,3,2,0,0.6,0.231,0.882,1.0,5,3,True,0.6,False,False,False

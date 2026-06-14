@@ -24,7 +24,6 @@ dist/
 results.json
 results.csv
 *.log
-output/
 
 # IDE / editors
 .idea/

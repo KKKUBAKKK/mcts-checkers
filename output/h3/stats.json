@@ -1,0 +1,266 @@
+{
+  "hypothesis": "h3",
+  "win_rate_threshold": 0.6,
+  "configs": [
+    {
+      "name": "progressive500",
+      "p1": "progressive",
+      "p2": "uct",
+      "iterations": 500,
+      "p1_heuristic": "base",
+      "p2_heuristic": "base",
+      "games": 5,
+      "p1_wins": 2,
+      "p2_wins": 2,
+      "draws": 1,
+      "p1_win_rate": 0.4,
+      "ci95_lo": 0.118,
+      "ci95_hi": 0.769,
+      "pvalue_binomial": 1.0,
+      "n_seeds": 5,
+      "seeds_p1_ahead": 2,
+      "consistent_across_seeds": false,
+      "win_rate_threshold": 0.6,
+      "win_rate_above_threshold": false,
+      "pvalue_below_0.05": false,
+      "hypothesis_holds": false,
+      "per_seed": [
+        {
+          "seed": 0,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 10007,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 20014,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 30021,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 40028,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 0,
+          "draws": 1,
+          "p1_win_rate": 0.0
+        }
+      ]
+    },
+    {
+      "name": "progressive1000",
+      "p1": "progressive",
+      "p2": "uct",
+      "iterations": 1000,
+      "p1_heuristic": "base",
+      "p2_heuristic": "base",
+      "games": 5,
+      "p1_wins": 4,
+      "p2_wins": 1,
+      "draws": 0,
+      "p1_win_rate": 0.8,
+      "ci95_lo": 0.376,
+      "ci95_hi": 0.964,
+      "pvalue_binomial": 0.375,
+      "n_seeds": 5,
+      "seeds_p1_ahead": 4,
+      "consistent_across_seeds": true,
+      "win_rate_threshold": 0.6,
+      "win_rate_above_threshold": true,
+      "pvalue_below_0.05": false,
+      "hypothesis_holds": false,
+      "per_seed": [
+        {
+          "seed": 0,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 10007,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 20014,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 30021,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 40028,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        }
+      ]
+    },
+    {
+      "name": "progressive2000",
+      "p1": "progressive",
+      "p2": "uct",
+      "iterations": 2000,
+      "p1_heuristic": "base",
+      "p2_heuristic": "base",
+      "games": 5,
+      "p1_wins": 4,
+      "p2_wins": 1,
+      "draws": 0,
+      "p1_win_rate": 0.8,
+      "ci95_lo": 0.376,
+      "ci95_hi": 0.964,
+      "pvalue_binomial": 0.375,
+      "n_seeds": 5,
+      "seeds_p1_ahead": 4,
+      "consistent_across_seeds": true,
+      "win_rate_threshold": 0.6,
+      "win_rate_above_threshold": true,
+      "pvalue_below_0.05": false,
+      "hypothesis_holds": false,
+      "per_seed": [
+        {
+          "seed": 0,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 10007,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 20014,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 30021,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 40028,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        }
+      ]
+    },
+    {
+      "name": "progressive4000",
+      "p1": "progressive",
+      "p2": "uct",
+      "iterations": 4000,
+      "p1_heuristic": "base",
+      "p2_heuristic": "base",
+      "games": 5,
+      "p1_wins": 3,
+      "p2_wins": 2,
+      "draws": 0,
+      "p1_win_rate": 0.6,
+      "ci95_lo": 0.231,
+      "ci95_hi": 0.882,
+      "pvalue_binomial": 1.0,
+      "n_seeds": 5,
+      "seeds_p1_ahead": 3,
+      "consistent_across_seeds": true,
+      "win_rate_threshold": 0.6,
+      "win_rate_above_threshold": false,
+      "pvalue_below_0.05": false,
+      "hypothesis_holds": false,
+      "per_seed": [
+        {
+          "seed": 0,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 10007,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 20014,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        },
+        {
+          "seed": 30021,
+          "games": 1,
+          "p1_wins": 0,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.0
+        },
+        {
+          "seed": 40028,
+          "games": 1,
+          "p1_wins": 1,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0
+        }
+      ]
+    }
+  ]
+}

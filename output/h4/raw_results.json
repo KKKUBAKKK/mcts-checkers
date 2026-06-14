@@ -1,0 +1,408 @@
+[
+  {
+    "config": {
+      "name": "heuristic_edge_vs_center",
+      "p1": "heuristic",
+      "p2": "heuristic",
+      "iterations": 0,
+      "p1_heuristic": "edge",
+      "p2_heuristic": "center",
+      "mcts_search_units": 0
+    },
+    "per_seed": [
+      {
+        "seed": 0,
+        "summary": {
+          "p1": "heuristic",
+          "p2": "heuristic",
+          "games": 2,
+          "p1_wins": 2,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0,
+          "avg_moves": 149.5,
+          "avg_time_s": 0.0,
+          "p1_avg_nodes": 0.0,
+          "p2_avg_nodes": 0.0,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "heuristic",
+              "black": "heuristic",
+              "winner_color": "white",
+              "moves": 175,
+              "time_s": 0.03,
+              "white_avg_nodes": 0.0,
+              "black_avg_nodes": 0.0
+            },
+            {
+              "game": 2,
+              "white": "heuristic",
+              "black": "heuristic",
+              "winner_color": "black",
+              "moves": 124,
+              "time_s": 0.02,
+              "white_avg_nodes": 0.0,
+              "black_avg_nodes": 0.0
+            }
+          ]
+        }
+      },
+      {
+        "seed": 10007,
+        "summary": {
+          "p1": "heuristic",
+          "p2": "heuristic",
+          "games": 2,
+          "p1_wins": 1,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.5,
+          "avg_moves": 137.0,
+          "avg_time_s": 0.0,
+          "p1_avg_nodes": 0.0,
+          "p2_avg_nodes": 0.0,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "heuristic",
+              "black": "heuristic",
+              "winner_color": "black",
+              "moves": 138,
+              "time_s": 0.02,
+              "white_avg_nodes": 0.0,
+              "black_avg_nodes": 0.0
+            },
+            {
+              "game": 2,
+              "white": "heuristic",
+              "black": "heuristic",
+              "winner_color": "black",
+              "moves": 136,
+              "time_s": 0.02,
+              "white_avg_nodes": 0.0,
+              "black_avg_nodes": 0.0
+            }
+          ]
+        }
+      },
+      {
+        "seed": 20014,
+        "summary": {
+          "p1": "heuristic",
+          "p2": "heuristic",
+          "games": 2,
+          "p1_wins": 2,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0,
+          "avg_moves": 131.5,
+          "avg_time_s": 0.0,
+          "p1_avg_nodes": 0.0,
+          "p2_avg_nodes": 0.0,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "heuristic",
+              "black": "heuristic",
+              "winner_color": "white",
+              "moves": 145,
+              "time_s": 0.02,
+              "white_avg_nodes": 0.0,
+              "black_avg_nodes": 0.0
+            },
+            {
+              "game": 2,
+              "white": "heuristic",
+              "black": "heuristic",
+              "winner_color": "black",
+              "moves": 118,
+              "time_s": 0.02,
+              "white_avg_nodes": 0.0,
+              "black_avg_nodes": 0.0
+            }
+          ]
+        }
+      },
+      {
+        "seed": 30021,
+        "summary": {
+          "p1": "heuristic",
+          "p2": "heuristic",
+          "games": 2,
+          "p1_wins": 1,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.5,
+          "avg_moves": 102.0,
+          "avg_time_s": 0.0,
+          "p1_avg_nodes": 0.0,
+          "p2_avg_nodes": 0.0,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "heuristic",
+              "black": "heuristic",
+              "winner_color": "black",
+              "moves": 120,
+              "time_s": 0.02,
+              "white_avg_nodes": 0.0,
+              "black_avg_nodes": 0.0
+            },
+            {
+              "game": 2,
+              "white": "heuristic",
+              "black": "heuristic",
+              "winner_color": "black",
+              "moves": 84,
+              "time_s": 0.01,
+              "white_avg_nodes": 0.0,
+              "black_avg_nodes": 0.0
+            }
+          ]
+        }
+      },
+      {
+        "seed": 40028,
+        "summary": {
+          "p1": "heuristic",
+          "p2": "heuristic",
+          "games": 2,
+          "p1_wins": 2,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0,
+          "avg_moves": 140.5,
+          "avg_time_s": 0.0,
+          "p1_avg_nodes": 0.0,
+          "p2_avg_nodes": 0.0,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "heuristic",
+              "black": "heuristic",
+              "winner_color": "white",
+              "moves": 157,
+              "time_s": 0.02,
+              "white_avg_nodes": 0.0,
+              "black_avg_nodes": 0.0
+            },
+            {
+              "game": 2,
+              "white": "heuristic",
+              "black": "heuristic",
+              "winner_color": "black",
+              "moves": 124,
+              "time_s": 0.02,
+              "white_avg_nodes": 0.0,
+              "black_avg_nodes": 0.0
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "config": {
+      "name": "progressive_edge_vs_center_2000",
+      "p1": "progressive",
+      "p2": "progressive",
+      "iterations": 2000,
+      "p1_heuristic": "edge",
+      "p2_heuristic": "center",
+      "mcts_search_units": 4000
+    },
+    "per_seed": [
+      {
+        "seed": 0,
+        "summary": {
+          "p1": "progressive",
+          "p2": "progressive",
+          "games": 2,
+          "p1_wins": 0,
+          "p2_wins": 2,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 100.5,
+          "avg_time_s": 260.1,
+          "p1_avg_nodes": 2004.1,
+          "p2_avg_nodes": 2004.0,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "progressive",
+              "black": "progressive",
+              "winner_color": "black",
+              "moves": 102,
+              "time_s": 269.6,
+              "white_avg_nodes": 2004.9,
+              "black_avg_nodes": 2004.8
+            },
+            {
+              "game": 2,
+              "white": "progressive",
+              "black": "progressive",
+              "winner_color": "white",
+              "moves": 99,
+              "time_s": 250.68,
+              "white_avg_nodes": 2003.3,
+              "black_avg_nodes": 2003.3
+            }
+          ]
+        }
+      },
+      {
+        "seed": 10007,
+        "summary": {
+          "p1": "progressive",
+          "p2": "progressive",
+          "games": 2,
+          "p1_wins": 2,
+          "p2_wins": 0,
+          "draws": 0,
+          "p1_win_rate": 1.0,
+          "avg_moves": 136.5,
+          "avg_time_s": 419.1,
+          "p1_avg_nodes": 2004.2,
+          "p2_avg_nodes": 2003.2,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "progressive",
+              "black": "progressive",
+              "winner_color": "white",
+              "moves": 101,
+              "time_s": 237.04,
+              "white_avg_nodes": 2003.9,
+              "black_avg_nodes": 2004.1
+            },
+            {
+              "game": 2,
+              "white": "progressive",
+              "black": "progressive",
+              "winner_color": "black",
+              "moves": 172,
+              "time_s": 601.08,
+              "white_avg_nodes": 2002.4,
+              "black_avg_nodes": 2004.4
+            }
+          ]
+        }
+      },
+      {
+        "seed": 20014,
+        "summary": {
+          "p1": "progressive",
+          "p2": "progressive",
+          "games": 2,
+          "p1_wins": 0,
+          "p2_wins": 2,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 94.5,
+          "avg_time_s": 1208.5,
+          "p1_avg_nodes": 1986.4,
+          "p2_avg_nodes": 1988.4,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "progressive",
+              "black": "progressive",
+              "winner_color": "black",
+              "moves": 100,
+              "time_s": 448.42,
+              "white_avg_nodes": 2000.7,
+              "black_avg_nodes": 2003.8
+            },
+            {
+              "game": 2,
+              "white": "progressive",
+              "black": "progressive",
+              "winner_color": "white",
+              "moves": 89,
+              "time_s": 1968.54,
+              "white_avg_nodes": 1973.1,
+              "black_avg_nodes": 1972.1
+            }
+          ]
+        }
+      },
+      {
+        "seed": 30021,
+        "summary": {
+          "p1": "progressive",
+          "p2": "progressive",
+          "games": 2,
+          "p1_wins": 0,
+          "p2_wins": 2,
+          "draws": 0,
+          "p1_win_rate": 0.0,
+          "avg_moves": 106.5,
+          "avg_time_s": 498.6,
+          "p1_avg_nodes": 1987.4,
+          "p2_avg_nodes": 1985.5,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "progressive",
+              "black": "progressive",
+              "winner_color": "black",
+              "moves": 120,
+              "time_s": 436.59,
+              "white_avg_nodes": 1974.1,
+              "black_avg_nodes": 1970.5
+            },
+            {
+              "game": 2,
+              "white": "progressive",
+              "black": "progressive",
+              "winner_color": "white",
+              "moves": 93,
+              "time_s": 560.62,
+              "white_avg_nodes": 2000.5,
+              "black_avg_nodes": 2000.8
+            }
+          ]
+        }
+      },
+      {
+        "seed": 40028,
+        "summary": {
+          "p1": "progressive",
+          "p2": "progressive",
+          "games": 2,
+          "p1_wins": 1,
+          "p2_wins": 1,
+          "draws": 0,
+          "p1_win_rate": 0.5,
+          "avg_moves": 129.0,
+          "avg_time_s": 551.2,
+          "p1_avg_nodes": 2003.2,
+          "p2_avg_nodes": 2003.2,
+          "game_results": [
+            {
+              "game": 1,
+              "white": "progressive",
+              "black": "progressive",
+              "winner_color": "black",
+              "moves": 132,
+              "time_s": 574.28,
+              "white_avg_nodes": 2002.2,
+              "black_avg_nodes": 2002.1
+            },
+            {
+              "game": 2,
+              "white": "progressive",
+              "black": "progressive",
+              "winner_color": "black",
+              "moves": 126,
+              "time_s": 528.15,
+              "white_avg_nodes": 2004.2,
+              "black_avg_nodes": 2004.2
+            }
+          ]
+        }
+      }
+    ]
+  }
+]
