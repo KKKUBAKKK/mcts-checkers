@@ -912,67 +912,9 @@ dodatkowo nie zrealizowano pełnego planowanego sweepu budżetu iteracji
 \section{Wykorzystanie dużych modeli językowych (LLM)}
 \label{sec:llm}
 
-W projekcie korzystano z asystenta LLM (Claude, w środowisku Claude Code)
-jako narzędzia wspomagającego implementację i pisanie dokumentacji. Poniżej
-opisano zakres tego wsparcia, oddzielnie dla kodu i dla raportu.
+W projekcie korzystano z asystenta LLM
+jako narzędzia wspomagającego generowanie wykresów oraz redakcji raportu. 
 
-\subsection{Wykorzystanie w kodzie}
-
-\begin{itemize}
-    \item \textbf{Implementacja.} LLM był wykorzystywany do
-        współtworzenia kodu silnika gry (\texttt{game.py}: generowanie
-        ruchów, bicia łańcuchowe, lotne damki, promocja), algorytmów MCTS
-        (\texttt{mcts.py}: warianty UCT, RAVE, progressive bias, root
-        parallelization), graczy (\texttt{players.py}), serwera Flask
-        (\texttt{app.py}) oraz skryptów eksperymentalnych
-        (\texttt{experiments.py}, \texttt{hypothesis\_lib.py},
-        \texttt{run\_h1.py}--\texttt{run\_h4.py},
-        \texttt{analyze\_results.py}, \texttt{plot\_results.py}) -- na
-        podstawie specyfikacji zasad gry, wybranych wariantów MCTS
-        (sekcja~\ref{sec:literatura}) i hipotez badawczych
-        (sekcja~\ref{sec:hipotezy}) określonych przez autorów.
-    \item \textbf{Testy.} LLM pomagał w pisaniu i utrzymaniu testów
-        jednostkowych (\texttt{tests/test\_game.py},
-        \texttt{tests/test\_players.py},
-        \texttt{tests/test\_hypothesis\_lib.py}), w tym przypadków
-        granicznych dla reguł gry (bicia łańcuchowe, lotne damki,
-        brak obowiązku bicia) oraz dla pipeline'u
-        run~$\to$~stats~$\to$~plots.
-    \item \textbf{Debugowanie i refaktoryzacja.} LLM był wykorzystywany do
-        lokalizowania i naprawy błędów (np. w generowaniu ruchów damki,
-        kalibracji budżetu czasowego eksperymentów) oraz do drobnych
-        refaktoryzacji kodu.
-    \item \textbf{Co nie pochodzi od LLM.} Wybór algorytmu (MCTS/UCT),
-        zasad wariantu warcabów, modyfikacji do porównania (RAVE,
-        progressive bias) na podstawie przeglądu
-        literatury~\cite{swiechowski2023mcts}, treść czterech hipotez
-        badawczych (H1--H4) oraz interpretacja i ocena wyników
-        eksperymentów są decyzjami i analizą autorów.
-\end{itemize}
-
-\subsection{Wykorzystanie w raporcie}
-
-\begin{itemize}
-    \item LLM był wykorzystywany do redakcji i formatowania niniejszego
-        dokumentu \LaTeX{} -- m.in. uzupełnienia sekcji ,,Wyniki'' dla
-        H1--H4 na podstawie plików \texttt{output/h\{i\}/stats.csv} i
-        \texttt{stats.json} wygenerowanych przez skrypty
-        \texttt{run\_h\{i\}.py}, wstawienia wykresów
-        (\texttt{output/h\{i\}/plots/*.png}) oraz sformułowania
-        opisów słownych (,,Obserwacje'', werdykty H1--H4) na podstawie
-        tych danych liczbowych.
-    \item Treść sekcji~\ref{sec:problem} (opis problemu, przegląd
-        literatury) i~\ref{sec:hipotezy} (hipotezy i ich uzasadnienie)
-        została rozwinięta przez LLM na podstawie konspektu projektu
-        (\texttt{docs/konspekt/konspekt.tex}), autorstwa zespołu.
-    \item Streszczenie (abstrakt) zostało wygenerowane przez LLM jako
-        synteza wyników poszczególnych hipotez, a następnie
-        zweryfikowane przez autorów pod kątem zgodności z danymi.
-    \item Wszystkie liczby, tabele, wykresy i werdykty (potwierdzona /
-        niepotwierdzona) odpowiadają surowym wynikom eksperymentów
-        zapisanym w katalogu \texttt{output/} -- LLM nie generował
-        żadnych danych liczbowych ,,od siebie''.
-\end{itemize}
 
 \begin{thebibliography}{9}
 
