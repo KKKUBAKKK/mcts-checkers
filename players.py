@@ -111,7 +111,6 @@ class MCTSPlayer:
         self.seed = seed
         self.heuristic = heuristic
         self._call_count = 0
-        # number of tree nodes visited during the most recent choose_move call
         self.last_node_count: int = 0
 
         # A ProcessPoolExecutor is expensive to create (especially with the

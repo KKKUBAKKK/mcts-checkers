@@ -30,8 +30,6 @@ PLAYER_TYPES = ["uct", "rave", "progressive", "heuristic", "random"]
 _WINNER_NAME = {WHITE: "white", BLACK: "black", 0: "draw", None: "draw"}
 
 
-# ──────────────────────────────────────── game logging / replay
-
 def _serialize_move(move: list[tuple[int, int]]) -> str:
     """Serialize a move (path of board squares) as space-separated 'r,c' tokens."""
     return " ".join(f"{r},{c}" for r, c in move)

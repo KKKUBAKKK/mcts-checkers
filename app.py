@@ -10,12 +10,11 @@ from players import MCTSPlayer, HeuristicPlayer, RandomPlayer
 
 app = Flask(__name__)
 
-# ── global game state (single-user server) ──────────────────────────────────
 game: CheckersGame = CheckersGame()
 ai_player: MCTSPlayer | HeuristicPlayer | RandomPlayer = MCTSPlayer(
     variant="uct", iterations=2000, parallel=True,
 )
-human_color: int = 1  # WHITE by default
+human_color: int = 1
 
 
 @app.route("/")
@@ -76,7 +75,6 @@ def human_move():
 
     move = [tuple(p) for p in move_raw]
 
-    # validate
     legal = game.get_legal_moves()
     if move not in legal:
         return jsonify({"error": "illegal move", "legal": [list(map(list, m)) for m in legal]}), 400

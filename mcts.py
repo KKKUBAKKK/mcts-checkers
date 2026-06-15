@@ -18,14 +18,12 @@ from game import CheckersGame, WHITE, BLACK, BOARD_SIZE
 from game import WHITE_PIECE, WHITE_KING, BLACK_PIECE, BLACK_KING, EMPTY
 
 
-# ──────────────────────────────────────── heuristic evaluation (shared)
-
-# Available heuristic variants for `evaluate()`, injectable into
-# HeuristicPlayer and the progressive-bias MCTS variant (see H4 in the
-# konspekt: edge-favouring vs. center-favouring positional evaluation).
+# Heuristic variants for `evaluate()`, injectable into HeuristicPlayer and the
+# progressive-bias MCTS variant (see H4: edge-favouring vs. center-favouring
+# positional evaluation).
 HEURISTICS = ("base", "edge", "center")
 
-_BOARD_CENTER = (BOARD_SIZE - 1) / 2.0  # 4.5 for a 10x10 board
+_BOARD_CENTER = (BOARD_SIZE - 1) / 2.0
 
 
 def _positional_bonus(c: int, heuristic: str) -> float:
@@ -67,8 +65,6 @@ def evaluate(game: CheckersGame, heuristic: str = "base") -> float:
     return white_score / total
 
 
-# ──────────────────────────────────────── MCTS node
-
 class MCTSNode:
     __slots__ = (
         "game", "parent", "move", "children",
@@ -101,8 +97,6 @@ class MCTSNode:
         return self.game.is_terminal()
 
 
-# ──────────────────────────────────────── selection policies
-
 def ucb1(node: MCTSNode, child: MCTSNode, c: float) -> float:
     exploit = child.value / child.visits
     explore = c * math.sqrt(math.log(node.visits) / child.visits)
@@ -133,8 +127,6 @@ def ucb1_progressive(node: MCTSNode, child: MCTSNode, c: float,
     bias = w * h / (child.visits + 1)
     return exploit + explore + bias
 
-
-# ──────────────────────────────────────── core MCTS routines
 
 def _select(node: MCTSNode, variant: str, c: float,
             heuristic: str = "base") -> MCTSNode:
@@ -237,14 +229,10 @@ def mcts_search(game: CheckersGame, iterations: int, variant: str = "uct",
     root = MCTSNode(game.clone())
 
     for _ in range(iterations):
-        # select
         node = _select(root, variant, c, heuristic)
-        # expand
         if not node.is_terminal():
             node = _expand(node)
-        # simulate
         result = _simulate(node.game, rng)
-        # gather moves for RAVE
         sim_moves = None
         if variant == "rave":
             sim_moves = []
@@ -258,7 +246,6 @@ def mcts_search(game: CheckersGame, iterations: int, variant: str = "uct",
                 sim_moves.append(_move_key(m))
                 g2.make_move(m)
                 depth += 1
-        # backpropagate
         _backpropagate(node, result, variant, sim_moves)
 
     if not root.children:
@@ -268,8 +255,6 @@ def mcts_search(game: CheckersGame, iterations: int, variant: str = "uct",
     best = max(root.children, key=lambda ch: ch.visits)
     return best.move, _count_nodes(root)
 
-
-# ──────────────────────────── worker for root parallelisation
 
 def _worker(args: tuple) -> dict:
     """Run MCTS in a subprocess.
@@ -373,11 +358,9 @@ def mcts_search_parallel(game: CheckersGame, iterations: int,
 
     best_move_str = max(aggregated, key=lambda k: aggregated[k])
 
-    # map string back to move
     legal = game.get_legal_moves()
     for m in legal:
         if str(m) == best_move_str:
             return m, total_nodes
 
-    # fallback
     return (legal[0] if legal else []), total_nodes

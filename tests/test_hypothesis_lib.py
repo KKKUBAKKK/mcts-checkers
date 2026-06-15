@@ -138,8 +138,8 @@ def test_run_h1_build_configs():
 
 
 def test_run_h2_build_configs():
-    configs = build_h2_configs([500, 5000])
-    assert [c.iterations for c in configs] == [500, 5000]
+    configs = build_h2_configs([500, 1000, 2000])
+    assert [c.iterations for c in configs] == [500, 1000, 2000]
     for c in configs:
         assert c.p1 == "rave"
         assert c.p2 == "uct"

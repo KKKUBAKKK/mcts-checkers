@@ -35,11 +35,10 @@ class CheckersGame:
         self.current_player: int = WHITE
         self.move_count: int = 0
         self.max_moves: int = max_moves
-        self.captured_white: list[int] = []  # white pieces captured by black
-        self.captured_black: list[int] = []  # black pieces captured by white
-        self.captured: list[int] = []        # all captured pieces in order
+        self.captured_white: list[int] = []
+        self.captured_black: list[int] = []
+        self.captured: list[int] = []
 
-    # ------------------------------------------------------------------ init
     @staticmethod
     def _init_board() -> list[list[int]]:
         board = [[EMPTY] * BOARD_SIZE for _ in range(BOARD_SIZE)]
@@ -53,7 +52,6 @@ class CheckersGame:
                     board[r][c] = WHITE_PIECE
         return board
 
-    # ------------------------------------------------------------------ copy
     def clone(self) -> CheckersGame:
         g = CheckersGame.__new__(CheckersGame)
         g.board = [row[:] for row in self.board]
@@ -65,7 +63,6 @@ class CheckersGame:
         g.captured = self.captured[:]
         return g
 
-    # --------------------------------------------------------------- helpers
     @staticmethod
     def _in_bounds(r: int, c: int) -> bool:
         return 0 <= r < BOARD_SIZE and 0 <= c < BOARD_SIZE
@@ -78,7 +75,6 @@ class CheckersGame:
         p = self.board[r][c]
         return (p < 0) if player == WHITE else (p > 0)
 
-    # -------------------------------------------------------- move generation
     def get_legal_moves(self) -> list[list[tuple[int, int]]]:
         """Return all legal moves for the current player.
 
@@ -110,7 +106,6 @@ class CheckersGame:
             if self._in_bounds(nr, nc) and self.board[nr][nc] == EMPTY:
                 out.append([(r, c), (nr, nc)])
 
-    # -- regular piece captures (all 4 dirs, chain) -------------------------
     def _piece_captures(self, r: int, c: int,
                         out: list[list[tuple[int, int]]]) -> None:
         self._piece_cap_dfs(r, c, [(r, c)], set(), out)
@@ -131,7 +126,6 @@ class CheckersGame:
                     or board[lr][lc] != EMPTY):
                 continue
             found = True
-            # temporarily update board
             old_from = board[r][c]
             old_mid = board[mr][mc]
             board[r][c] = EMPTY
@@ -145,7 +139,6 @@ class CheckersGame:
         if not found and len(path) > 1:
             out.append(list(path))
 
-    # -- flying king moves/captures -----------------------------------------
     def _king_simple_moves(self, r: int, c: int,
                            out: list[list[tuple[int, int]]]) -> None:
         board = self.board
@@ -169,7 +162,6 @@ class CheckersGame:
         player = self.current_player
         for dr, dc in DIRECTIONS:
             nr, nc = r + dr, c + dc
-            # fly over empty squares
             while self._in_bounds(nr, nc) and board[nr][nc] == EMPTY:
                 nr += dr
                 nc += dc
@@ -177,8 +169,7 @@ class CheckersGame:
                     or not self._is_opponent(nr, nc, player)
                     or (nr, nc) in captured):
                 continue
-            mr, mc = nr, nc  # captured piece
-            # all landing squares beyond the captured piece
+            mr, mc = nr, nc
             lr, lc = mr + dr, mc + dc
             while self._in_bounds(lr, lc) and board[lr][lc] == EMPTY:
                 found = True
@@ -197,14 +188,12 @@ class CheckersGame:
         if not found and len(path) > 1:
             out.append(list(path))
 
-    # ---------------------------------------------------------- make move
     def make_move(self, move: list[tuple[int, int]]) -> None:
         board = self.board
         sr, sc = move[0]
         er, ec = move[-1]
         piece = board[sr][sc]
 
-        # remove captured pieces along the path
         for i in range(len(move) - 1):
             r1, c1 = move[i]
             r2, c2 = move[i + 1]
@@ -226,7 +215,6 @@ class CheckersGame:
 
         board[sr][sc] = EMPTY
 
-        # promotion
         if piece == WHITE_PIECE and er == 0:
             piece = WHITE_KING
         elif piece == BLACK_PIECE and er == BOARD_SIZE - 1:
@@ -236,7 +224,6 @@ class CheckersGame:
         self.current_player = -self.current_player
         self.move_count += 1
 
-    # --------------------------------------------------------- terminal check
     def get_winner(self) -> int | None:
         """Return WHITE, BLACK, 0 (draw), or None (ongoing)."""
         if self.move_count >= self.max_moves:
@@ -263,7 +250,6 @@ class CheckersGame:
     def is_terminal(self) -> bool:
         return self.get_winner() is not None
 
-    # --------------------------------------------------------- serialization
     def to_dict(self) -> dict:
         return {
             "board": self.board,

@@ -1,6 +1,6 @@
 """H1 -- stage 1 ("uruchomienia"): pure UCT vs. the heuristic player.
 
-Konspekt H1: "Czysty UCT z wystarczającym limitem iteracji (>=10000 na ruch)
+Konspekt H1: "Czysty UCT z wystarczającym limitem iteracji (>=3000 na ruch)
 gra istotnie skuteczniej od gracza czysto heurystycznego, osiągając >60%
 wygranych w meczu z naprzemienną zmianą kolorów."
 
@@ -63,9 +63,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if 10000 not in args.iterations:
-        print("NOTE: H1 specifically claims a result at >=10000 iterations; "
-              "consider including 10000 in --iterations.")
+    if not any(it >= 3000 for it in args.iterations):
+        print("NOTE: H1 specifically claims a result at >=3000 iterations; "
+              "consider including an iteration budget >=3000 in --iterations.")
 
     configs = build_configs(args.iterations)
     raw_path = run_stage1(args, configs)

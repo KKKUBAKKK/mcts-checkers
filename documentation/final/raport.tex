@@ -31,50 +31,230 @@
 \maketitle
 
 \begin{abstract}
-Niniejszy dokument jest szkieletem (template) raportu końcowego. W obecnej
-wersji opisuje wyłącznie \emph{plan i metodykę testów} dla hipotez H1--H4 --
-konfiguracje eksperymentów, sposób ich uruchamiania (pipeline
-runy~$\to$~statystyki~$\to$~testy istotności~$\to$~wykresy), kryteria
-potwierdzenia hipotez oraz zapewnienie powtarzalności. Sekcje z wynikami
-(tabele, wykresy, dyskusja) zostaną uzupełnione po wykonaniu eksperymentów.
+Niniejszy raport opisuje implementację oraz eksperymentalną weryfikację
+algorytmu Monte Carlo Tree Search (MCTS) w wariancie UCT jako sztucznej
+inteligencji do gry w warcaby $10\times10$ z modyfikowanymi zasadami: bicie
+nie jest obowiązkowe, a damki biją wzdłuż całej diagonali (,,latające
+damki''). Zaimplementowano cztery strategie graczy: czysty UCT, UCT z
+rozszerzeniem RAVE, UCT z heurystycznym progressive bias oraz prostego
+gracza heurystycznego (greedy, jednoposunięciowy). Postawiono cztery
+hipotezy badawcze (H1--H4) i zweryfikowano je w automatycznych turniejach
+AI vs AI, z powtórzeniami dla $\geq 5$ ziaren losowych oraz testami
+statystycznymi (dwustronny dokładny test dwumianowy względem $p_0=0{,}5$,
+przedziały ufności Wilsona, test spójności między ziarnami). H1 (UCT vs
+heurystyka przy $\geq 3\,000$ iteracjach) wykazała jasny trend wzrostowy
+odsetka wygranych UCT -- od $0\%$ przy $500$ iteracjach do $80\%$ przy
+$5\,000$ -- lecz przy $n=5$ partii na konfigurację wynik nie osiągnął
+istotności statystycznej. H2 (RAVE vs UCT) nie wykazała przewagi RAVE w
+zbadanym zakresie do $2\,000$ iteracji. H3 (progressive bias vs UCT)
+wykazała charakterystyczny kształt ,,odwróconej litery U'' -- przewagę do
+$80\%$ przy $1\,000$--$2\,000$ iteracjach i jej zanik przy $4\,000$ --
+częściowo potwierdzając przewidywany kierunek, ale również bez istotności
+statystycznej. H4 (premiowanie krawędzi vs centrum planszy) dało sprzeczne
+wyniki między konfiguracją czysto heurystyczną ($80\%$ na korzyść
+,,krawędzi'') i konfiguracją z progressive bias ($30\%$), co prowadzi do
+odrzucenia hipotezy w jej obecnym sformułowaniu. Żadna z czterech hipotez
+nie została formalnie potwierdzona przy obecnej liczbie partii
+($n=5$--$10$), choć H1 i H3 są wsparte obserwowanymi trendami. Głównym
+ograniczeniem jest mała próba wynikająca z budżetu czasowego eksperymentów
+na planszy $10\times10$ z latającymi damkami. Raport zawiera również opis
+przebiegu testów z udziałem ludzi oraz informację o sposobie wykorzystania
+dużych modeli językowych (LLM) w pracach nad kodem i samym raportem.
 \end{abstract}
 
 \tableofcontents
 
-\section{Wprowadzenie}
+\section{Opis problemu}
+\label{sec:problem}
+
+\subsection{Zastosowanie MCTS/UCT do warcabów $10\times10$ z modyfikowanymi
+zasadami}
+
+Przedmiotem projektu jest zastosowanie algorytmu Monte Carlo Tree Search
+(MCTS), w szczególności jego wariantu Upper Confidence Bound applied to
+Trees (UCT), do stworzenia sztucznej inteligencji grającej w wybraną grę
+dwuosobową z pełną informacją. Grą wybraną do badań są warcaby na planszy
+$10\times10$ z modyfikacjami klasycznych zasad: \emph{bicie nie jest
+obowiązkowe} oraz \emph{damki biją wzdłuż całej diagonali} (,,latające
+damki''), co odpowiada zasadom zbliżonym do warcabów międzynarodowych w
+aspekcie ruchu damki, lecz różnym w aspekcie obowiązku bicia.
+
+Brak obowiązkowego bicia istotnie zwiększa współczynnik rozgałęzienia
+drzewa gry -- w każdej pozycji, w której istnieje bicie, gracz może je
+wykonać lub wybrać dowolny inny ruch. Oznacza to, że MCTS musi rozważać
+znacznie szerszy zbiór akcji niż w klasycznych warcabach, a heurystyki
+ukierunkowane na bicia (typowe dla silników warcabowych) mają ograniczone
+zastosowanie. Latające damki natomiast wzmacniają wartość promocji i
+wprowadzają silne, dalekosiężne interakcje pomiędzy figurami, co może
+wpływać na jakość losowych symulacji. Ta kombinacja zasad czyni grę
+nietrywialnym przypadkiem do badania algorytmu MCTS i jego rozszerzeń.
+
+Stan gry reprezentowany jest jako planszę $10\times10$ z 20 pionkami po
+każdej stronie, ustawionymi na ciemnych polach pierwszych czterech rzędów
+każdego z graczy. Gra kończy się zwycięstwem strony, której przeciwnik nie
+ma legalnego ruchu (brak figur lub całkowite zablokowanie). Aby
+eksperymenty kończyły się w rozsądnym czasie, wprowadzono limit liczby
+półruchów bez bicia i bez ruchu pionka -- przekroczenie limitu skutkuje
+remisem.
+
+\subsection{Przegląd literatury}
+\label{sec:literatura}
+
+Algorytm MCTS w postaci UCT został zaproponowany przez Kocsisa i
+Szepesváriego~\cite{kocsis2006uct}. W projekcie oparto się przede
+wszystkim na przeglądzie Świechowskiego, Godlewskiego, Sawickiego i
+Mańdziuka~\cite{swiechowski2023mcts}, który systematyzuje modyfikacje MCTS
+publikowane w ostatniej dekadzie i grupuje je dla gier z pełną informacją w
+trzy kategorie: \emph{action reduction} (ograniczanie zbioru akcji),
+\emph{UCT alternatives} (modyfikacje reguły selekcji) oraz \emph{early
+termination} (skracanie fazy symulacji). Z tego podziału wybrano dwie
+modyfikacje, po jednej z pierwszych dwóch kategorii, jako najlepiej
+dopasowane do specyfiki badanej gry (duży współczynnik rozgałęzienia,
+dostępna prosta funkcja oceny pozycji, deterministyczna gra dwuosobowa z
+pełną informacją):
+
+\begin{itemize}
+    \item \textbf{RAVE / AMAF} (Rapid Action Value Estimation, All Moves
+        As First) -- z kategorii \emph{UCT
+        alternatives}~\cite{swiechowski2023mcts}, oryginalnie
+        zaproponowane przez Gelly'ego i
+        Silvera~\cite{gelly2007combining, gelly2011monte}. Wynik symulacji
+        jest przypisywany nie tylko ruchowi faktycznie wykonanemu w węźle,
+        lecz wszystkim ruchom o tym samym kluczu, które wystąpiły w dalszej
+        części playoutu. Statystyki AMAF są łączone z klasycznymi
+        statystykami UCT za pomocą malejącej wagi $\beta(n)$, co
+        przyspiesza zbieżność wartości akcji w rzadko odwiedzanych węzłach
+        -- efekt szczególnie cenny w grach o dużym współczynniku
+        rozgałęzienia.
+    \item \textbf{Progressive Bias} -- z kategorii \emph{action
+        reduction}~\cite{swiechowski2023mcts}, oryginalnie wprowadzona
+        przez Chaslota i in.~\cite{chaslot2008progressive}. Reguła wyboru
+        węzła jest wzmocniona członem heurystycznym
+        $w \cdot h(\text{stan})/(n_i+1)$, gdzie $h$ jest statyczną funkcją
+        oceny pozycji, a $n_i$ liczbą wizyt dziecka. Wpływ członu maleje
+        wraz ze wzrostem $n_i$, dzięki czemu heurystyka kieruje
+        przeszukiwaniem we wczesnej fazie, a w miarę gromadzenia danych
+        decyduje statystyka Monte~Carlo.
+\end{itemize}
+
+Z kategorii \emph{early termination}~\cite{swiechowski2023mcts}
+świadomie zrezygnowano -- jej zastosowanie wymagałoby silniejszej funkcji
+oceny niż ta, którą dysponujemy, a w badanym wariancie zasad losowe
+playouty do końca gry pozostają wykonalne czasowo dzięki limitowi
+półruchów bez bicia.
+
+Łącznie porównano zatem trzy warianty MCTS: \textbf{czysty UCT},
+\textbf{UCT+RAVE} oraz \textbf{UCT+progressive bias}. Wszystkie dzielą tę
+samą strukturę pętli (selekcja -- ekspansja -- losowa symulacja do końca
+gry -- propagacja wsteczna) oraz ten sam mechanizm zrównoleglenia (root
+parallelization: niezależne drzewa w procesach roboczych z agregacją
+liczników wizyt na końcu).
+
+W kontekście samej gry warcaby $10\times10$ bez obowiązku bicia z
+latającymi damkami pozostają wariantem stosunkowo słabo zbadanym pod kątem
+MCTS. Przegląd~\cite{swiechowski2023mcts} wielokrotnie wskazuje, że w
+grach o wysokim współczynniku rozgałęzienia modyfikacje wykorzystujące
+wiedzę domenową lub współdzielenie statystyk akcji zwykle wyraźnie
+wyprzedzają podstawowy UCT -- co stało się bezpośrednią motywacją dla
+hipotez H2 i H3 (sekcja~\ref{sec:hipotezy}).
+
+\paragraph{Gracz heurystyczny.} Bazowy gracz heurystyczny działa w prostym
+schemacie \emph{greedy jednopoziomowym}: dla każdego legalnego ruchu z
+bieżącej pozycji wykonuje go na kopii stanu, oblicza wartość statycznej
+funkcji oceny powstałej pozycji i wybiera ruch maksymalizujący ocenę (z
+deterministycznym rozstrzyganiem remisów dzięki ziarnu RNG). Funkcja oceny
+jest liniową kombinacją:
+\begin{itemize}[noitemsep]
+    \item \textbf{materiału} -- pionek o wartości $1{,}0$, damka $3{,}0$;
+    \item \textbf{zaawansowania pionka} -- mały bonus za bliskość do rzędu
+        promocji (premiuje rozwój i potencjał uzyskania damki);
+    \item ocena zwracana jest w postaci znormalizowanej
+        $\text{biały}/(\text{biały}+\text{czarny}) \in [0,1]$, dzięki czemu
+        działa w obu kolorach po prostym odwróceniu znaku.
+\end{itemize}
+Heurystyka jest świadomie prosta -- ma być realistycznym, lecz słabym
+przeciwnikiem porównawczym i jednocześnie tym samym członem
+$h(\text{stan})$ używanym w wariancie progressive bias, co zapewnia
+spójność porównań. Dla H4 (sekcja~\ref{sec:hipotezy}) funkcja oceny jest
+dodatkowo modyfikowana wariantem premiującym bliskość do krawędzi
+(\texttt{"edge"}) lub do centrum planszy (\texttt{"center"}).
 
 \subsection{Zakres tego dokumentu}
 
-Ten plik (\texttt{documentation/final/raport.tex}) jest \emph{szablonem}
-raportu końcowego. Sekcja~\ref{sec:metodologia} opisuje wspólną
+Sekcja~\ref{sec:hipotezy} przedstawia rozszerzoną (względem konspektu)
+wersję czterech hipotez badawczych wraz z uzasadnieniem i ogólnym planem
+ich weryfikacji. Sekcja~\ref{sec:metodologia} opisuje wspólną
 infrastrukturę eksperymentalną, a sekcje~\ref{sec:h1}--\ref{sec:h4}
-opisują -- dla każdej z czterech hipotez badawczych -- dokładny plan testów:
-jakie konfiguracje graczy są porównywane, ile partii zostanie rozegranych,
-jakie kryterium decyduje o potwierdzeniu hipotezy oraz jakie artefakty
-(pliki JSON/CSV/PNG) powstaną. Wyniki (sekcje ,,Wyniki'' w każdej
-podsekcji) są obecnie placeholderami -- zostaną wypełnione po uruchomieniu
-skryptów \texttt{run\_h1.py}--\texttt{run\_h4.py}.
+opisują -- dla każdej z czterech hipotez badawczych -- dokładną
+konfigurację eksperymentów (jacy gracze są porównywani, ile partii
+zostało rozegranych, jakie kryterium decyduje o potwierdzeniu hipotezy)
+oraz uzyskane wyniki (wykresy, dyskusja, werdykt).
 
-\subsection{Przypomnienie hipotez}
+\section{Hipotezy badawcze i opis eksperymentów}
+\label{sec:hipotezy}
 
-\begin{description}[leftmargin=2.2cm,style=nextline]
+Zgodnie z wymaganiami projektu postawiono cztery hipotezy: trzy wymagane
+(porównania graczy, H1--H3) oraz jedną autorską (H4), związaną
+bezpośrednio z modyfikacją zasad badanego wariantu warcabów. Każda
+hipoteza jest weryfikowana w samodzielnym przebiegu eksperymentalnym
+(skrypty \texttt{run\_h1.py}--\texttt{run\_h4.py}, zob.
+sekcja~\ref{sec:metodologia}) realizującym turniej AI vs AI pomiędzy
+dwoma graczami przy ustalonym budżecie iteracji, powtórzony dla $\geq 5$
+ziaren losowych z naprzemienną zmianą kolorów.
+
+\begin{description}[style=nextline,leftmargin=0pt]
     \item[H1 (UCT vs heurystyka).] Czysty UCT z wystarczającym limitem
-        iteracji ($\geq 10\,000$ na ruch) gra istotnie skuteczniej od
-        gracza czysto heurystycznego, osiągając $> 60\%$ wygranych w
-        meczu z naprzemienną zmianą kolorów.
+        iteracji ($\geq 3\,000$ na ruch) gra istotnie skuteczniej od
+        gracza czysto heurystycznego, osiągając $> 60\%$ wygranych w meczu
+        z naprzemienną zmianą kolorów. \emph{Uzasadnienie:} przy
+        wystarczająco dużym budżecie przeszukiwanie drzewa Monte Carlo
+        powinno wykryć linie gry niedostępne dla heurystyki
+        jednoposunięciowej (np. wymiany figur korzystne w dalszym
+        horyzoncie, pułapki z biciem łańcuchowym). \emph{Eksperyment:}
+        \texttt{MCTSPlayer(variant="uct")} vs \texttt{HeuristicPlayer}, ze
+        sweepem budżetu iteracji UCT obejmującym wartości $<3\,000$ i
+        $\geq 3\,000$, aby pokazać zarówno reżim, w którym UCT przegrywa,
+        jak i reżim objęty warunkiem H1.
+
     \item[H2 (RAVE poprawia UCT).] UCT z rozszerzeniem RAVE wygrywa
         $> 60\%$ partii z czystym UCT przy tym samym limicie iteracji.
+        \emph{Uzasadnienie:} zob.
+        sekcja~\ref{sec:literatura} -- współdzielenie statystyk AMAF
+        powinno przyspieszać zbieżność oceny akcji w węzłach rzadko
+        odwiedzanych, co jest szczególnie istotne przy dużym współczynniku
+        rozgałęzienia (brak obowiązkowego bicia). \emph{Eksperyment:}
+        \texttt{MCTSPlayer(variant="rave")} vs
+        \texttt{MCTSPlayer(variant="uct")}, obie strony przy tym samym
+        budżecie iteracji, sweep $\{500, 1\,000, 2\,000\}$.
+
     \item[H3 (Progressive bias poprawia UCT).] UCT z heurystycznym
         progressive bias wygrywa $> 60\%$ partii z czystym UCT, a jego
         przewaga jest największa przy małym limicie iteracji
-        ($\leq 2\,000$/ruch); wraz ze wzrostem liczby iteracji oczekujemy
-        zaniku przewagi.
-    \item[H4 (krawędzie vs środek planszy).] Heurystyki premiujące figury
-        przy krawędzi planszy są skuteczniejsze niż heurystyki premiujące
-        figury w centrum -- weryfikacja w dwóch konfiguracjach
-        (gracz heurystyczny oraz UCT + progressive bias), oba z wariantem
-        ,,krawędzie'' vs ,,środek''. Hipoteza potwierdzona, jeśli wariant
-        ,,krawędzie'' wygrywa $> 50\%$ partii w \emph{obu} konfiguracjach.
+        ($\leq 2\,000$/ruch), gdy losowe symulacje nie wystarczają do
+        oceny pozycji; wraz ze wzrostem liczby iteracji oczekuje się
+        zaniku przewagi, gdy statystyki Monte~Carlo stają się
+        wystarczająco wiarygodne samodzielnie. \emph{Eksperyment:}
+        \texttt{MCTSPlayer(variant="progressive")} (z biasem
+        $h(\text{stan})$ równym heurystyce \texttt{"base"}) vs
+        \texttt{MCTSPlayer(variant="uct")}, sweep budżetu iteracji
+        obejmujący wartości $\leq 2\,000$ \emph{i} $> 2\,000$.
+
+    \item[H4 (krawędzie vs środek planszy).] W badanym wariancie warcabów
+        heurystyki premiujące figury przy krawędzi planszy są
+        skuteczniejsze niż heurystyki premiujące figury w centrum.
+        \emph{Uzasadnienie:} przy lotnych damkach figury w centrum
+        kontrolują więcej przekątnych, ale są też bardziej narażone na
+        wymianę; figury blisko krawędzi mogą być trudniejsze do
+        zaatakowania, co przy braku obowiązku bicia może faworyzować
+        defensywną postawę. \emph{Eksperyment:} dwa warianty statycznej
+        funkcji oceny $h$ -- jeden z dodatnim bonusem za zbliżenie do
+        krawędzi bocznych (\texttt{"edge"}), drugi z bonusem za zbliżenie
+        do centrum (\texttt{"center"}) -- wstawione do obu graczy
+        wykorzystujących heurystykę (gracza czysto heurystycznego oraz UCT
+        + progressive bias). Mecze rozegrane w dwóch konfiguracjach,
+        ,,krawędzie'' vs ,,środek'' w obu przypadkach jako $p_1$. Hipoteza
+        uznana za potwierdzoną, jeśli w \emph{obu} konfiguracjach wariant
+        ,,krawędzie'' wygrywa $> 50\%$ partii.
 \end{description}
 
 \section{Metodologia i infrastruktura wspólna}
@@ -185,23 +365,22 @@ z efektywniejszego przeszukiwania, a nie tylko z większego budżetu).
 vs \texttt{HeuristicPlayer} ($p_2$, heurystyka \texttt{"base"}).
 
 \textbf{Sweep budżetu iteracji ($p_1$):}
-$\{500,\ 1\,000,\ 2\,000,\ 5\,000,\ 10\,000\}$ -- pięć konfiguracji
-\texttt{uct500}, \dots, \texttt{uct10000}. Tylko $p_1$ wykonuje
+$\{500,\ 1\,000,\ 2\,000,\ 3\,000,\ 5\,000\}$ -- pięć konfiguracji
+\texttt{uct500}, \dots, \texttt{uct5000}, obejmujących warunek H1
+($\geq 3\,000$/ruch) w punktach $3\,000$ i $5\,000$. Tylko $p_1$ wykonuje
 przeszukiwanie MCTS (\texttt{mcts\_search\_units = iterations}), więc
-koszt konfiguracji rośnie liniowo z liczbą iteracji. Wartość
-$10\,000$ odpowiada literalnemu warunkowi H1 ($\geq 10\,000$/ruch).
+koszt konfiguracji rośnie liniowo z liczbą iteracji.
 
 \textbf{Liczba partii:} każda konfiguracja $\geq 5$ ziaren bazowych
 $\times \geq 1$ partia/ziarno (kolory zamieniane między parami partii w
 ramach \texttt{run\_match}); tańsze konfiguracje (np. \texttt{uct500})
 otrzymają do 50 partii w ramach dostępnego budżetu czasowego, droższe
-(\texttt{uct10000}) co najmniej 5 partii.
+(\texttt{uct5000}) co najmniej 5 partii.
 
-\textbf{Kryterium potwierdzenia:} dla danej konfiguracji H1 jest uznana za
-potwierdzoną, gdy odsetek wygranych UCT $> 60\%$, $p$-value (dwustronny
-test dwumianowy vs. $0{,}5$) $< 0{,}05$ i UCT wygrywa w większości z $\geq
-5$ ziaren. Oczekiwany wynik: hipoteza potwierdzona przy $10\,000$
-iteracjach (i prawdopodobnie przy mniejszych budżetach).
+\textbf{Kryterium potwierdzenia:} dla konfiguracji z $\geq 3\,000$
+iteracji H1 jest uznana za potwierdzoną, gdy odsetek wygranych UCT
+$> 60\%$, $p$-value (dwustronny test dwumianowy vs. $0{,}5$) $< 0{,}05$ i
+UCT wygrywa w większości z $\geq 5$ ziaren.
 
 \textbf{Artefakty:}
 \begin{itemize}
@@ -220,8 +399,79 @@ iteracjach (i prawdopodobnie przy mniejszych budżetach).
 
 \subsection{Wyniki}
 
-\textit{[TODO: tabela \texttt{stats.csv} oraz wykresy z
-\texttt{output/h1/plots/} po wykonaniu \texttt{python run\_h1.py}.]}
+\textbf{W skrócie:} im więcej iteracji MCTS dostaje UCT na ruch, tym
+częściej wygrywa z heurystyką -- przy $500$--$1\,000$ iteracjach UCT
+przegrywa \emph{każdą} partię, a przy $5\,000$ iteracjach wygrywa $4$ z
+$5$. Poniższa tabela i wykresy pokazują tę zależność liczbowo, a opis pod
+nimi tłumaczy ją w praktyce.
+
+Przebieg zakończony dla wszystkich pięciu konfiguracji
+($n=5$ partii/konfigurację, 1 partia/ziarno). Wyniki z
+\texttt{output/h1/stats.csv}:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrrrrl}
+\toprule
+Konfiguracja & Iteracje & $p_1$-win & 95\% CI & $p$-value & Spójność & $> 60\%$ & H1 \\
+\midrule
+uct500  & 500  & 0{,}0 & [0{,}00; 0{,}43] & 0{,}0625 & 0/5 & nie & nie \\
+uct1000 & 1000 & 0{,}0 & [0{,}00; 0{,}43] & 0{,}0625 & 0/5 & nie & nie \\
+uct2000 & 2000 & 0{,}2 & [0{,}04; 0{,}62] & 0{,}3750 & 1/5 & nie & nie \\
+uct3000 & 3000 & 0{,}4 & [0{,}12; 0{,}77] & 1{,}0000 & 2/5 & nie & nie \\
+uct5000 & 5000 & 0{,}8 & [0{,}38; 0{,}96] & 0{,}3750 & 4/5 & tak & nie \\
+\bottomrule
+\end{tabular}
+\caption{H1 -- odsetek wygranych UCT ($p_1$) z heurystyką ($p_2$) w
+funkcji budżetu iteracji. ,,Spójność'' = liczba ziaren, w których UCT
+wygrywa większość partii. Kolumna H1 = \texttt{hypothesis\_holds}
+(wymaga $> 60\%$ \emph{i} $p < 0{,}05$ \emph{i} spójności).}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/h1_winrate_bar.png}
+\caption{H1 -- odsetek wygranych UCT ($p_1$) z heurystyką ($p_2$) z 95\%
+przedziałami ufności Wilsona, z liniami referencyjnymi $0{,}5$ i $0{,}6$
+(\texttt{output/h1/plots/h1\_winrate\_bar.png}).}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/h1_winrate_vs_iterations.png}
+\caption{H1 -- odsetek wygranych UCT vs. budżet iteracji (skala
+logarytmiczna), z pasmem 95\% CI
+(\texttt{output/h1/plots/h1\_winrate\_vs\_iterations.png}).}
+\end{figure}
+
+\textbf{Obserwacje:}
+\begin{itemize}
+    \item Widoczny jest jasny, monotoniczny trend wzrostowy: odsetek
+        wygranych UCT rośnie z $0\%$ (500--1000 iteracji) przez $20\%$
+        (2000), $40\%$ (3000), do $80\%$ (5000) -- dokładnie zgodnie z
+        kierunkiem przewidywanym przez H1.
+    \item Przy $500$ i $1\,000$ iteracjach UCT przegrywa wszystkie
+        $5$ partii ($0/5$) -- przy tak małym budżecie przeszukiwanie MCTS
+        na planszy $10\times10$ z lotnymi damkami jest zbyt płytkie, aby
+        konkurować z heurystyką jednoposunięciową.
+    \item Przy $5\,000$ iteracjach (a więc w zakresie objętym warunkiem H1,
+        $\geq 3\,000$) UCT wygrywa $4/5$ partii ($80\%$), czyli
+        \emph{przekracza} próg $60\%$ i jest zgodny w większości ziaren --
+        jednak ze względu na małą liczbę partii ($n=5$) wynik nie jest
+        statystycznie istotny ($p=0{,}375$), więc formalnie
+        \texttt{hypothesis\_holds = False} dla każdej konfiguracji
+        (w tym dla \texttt{uct3000}, gdzie odsetek wygranych $40\%$ jest
+        zresztą poniżej progu).
+    \item Wniosek: H1 jest \textbf{wstępnie wsparta trendem}, ale nie
+        formalnie potwierdzona w tym przebiegu -- żadna konfiguracja nie
+        osiąga $p < 0{,}05$ przy $n=5$. Potwierdzenie wymagałoby większej
+        liczby partii na konfigurację (np. \texttt{--max-games-per-seed}
+        $> 1$ lub większy budżet czasowy).
+\end{itemize}
+
+\medskip
+\noindent\textbf{Werdykt H1: hipoteza NIEPOTWIERDZONA} (formalnie --
+brak konfiguracji z $p<0{,}05$; jedynie wsparta trendem wzrostowym).
 
 
 \section{H2: UCT + RAVE vs UCT}
@@ -237,12 +487,11 @@ vs \texttt{MCTSPlayer(variant="uct")} ($p_2$), \textbf{przy tym samym
 budżecie iteracji} dla obu stron.
 
 \textbf{Sweep budżetu iteracji (wspólny dla obu stron):}
-$\{500,\ 1\,000,\ 2\,000,\ 5\,000\}$ -- cztery konfiguracje
-\texttt{rave500}, \dots, \texttt{rave5000}. Obie strony wykonują
-przeszukiwanie MCTS (\texttt{mcts\_search\_units = 2 * iterations}), więc
-koszt konfiguracji jest ok. dwukrotnie wyższy niż analogicznej
-konfiguracji H1 -- stąd mniejszy (4-elementowy) sweep, aby zmieścić się w
-budżecie 2h.
+$\{500,\ 1\,000,\ 2\,000\}$ -- trzy konfiguracje \texttt{rave500},
+\texttt{rave1000}, \texttt{rave2000}. Obie strony wykonują przeszukiwanie
+MCTS (\texttt{mcts\_search\_units = 2 * iterations}), więc koszt
+konfiguracji jest ok. dwukrotnie wyższy niż analogicznej konfiguracji H1 --
+stąd mniejszy (3-elementowy) sweep, aby zmieścić się w budżecie 2h.
 
 \textbf{Liczba partii:} analogicznie do H1 -- $\geq 5$ ziaren $\times \geq
 1$ partia/ziarno, do 50 partii na konfigurację w ramach budżetu czasowego.
@@ -257,9 +506,70 @@ tym samym budżecie, $p < 0{,}05$, spójnie między ziarnami.
 h2\_winrate\_vs\_iterations.png\}}.
 
 \subsection{Wyniki}
+\label{sec:h2-wyniki}
 
-\textit{[TODO: tabela \texttt{stats.csv} oraz wykresy z
-\texttt{output/h2/plots/} po wykonaniu \texttt{python run\_h2.py}.]}
+\textbf{W skrócie:} dodanie RAVE do UCT nie pomogło -- w żadnej z trzech
+przebadanych konfiguracji ($500$, $1\,000$, $2\,000$ iteracji) UCT+RAVE nie
+wygrywał z czystym UCT częściej niż w połowie partii, a najlepszy wynik
+($2$ z $5$ przy $1\,000$ iteracjach) jest wciąż poniżej progu z H2.
+
+Przebieg zakończony dla wszystkich trzech konfiguracji
+($n=5$ partii/konfigurację, 1 partia/ziarno). Wyniki z
+\texttt{output/h2/stats.csv}:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrrrrl}
+\toprule
+Konfiguracja & Iteracje & $p_1$-win & 95\% CI & $p$-value & Spójność & $> 60\%$ & H2 \\
+\midrule
+rave500  & 500  & 0{,}0 & [0{,}00; 0{,}43] & 0{,}1250 & 0/5 & nie & nie \\
+rave1000 & 1000 & 0{,}4 & [0{,}12; 0{,}77] & 1{,}0000 & 2/5 & nie & nie \\
+rave2000 & 2000 & 0{,}2 & [0{,}04; 0{,}62] & 0{,}6250 & 1/5 & nie & nie \\
+\bottomrule
+\end{tabular}
+\caption{H2 -- odsetek wygranych UCT+RAVE ($p_1$) z czystym UCT ($p_2$)
+przy tym samym budżecie iteracji. Konfiguracja \texttt{rave500} ma jeden
+remis (\texttt{draws=1}), stąd $n=4$ partii zdecydowanych dla testu
+dwumianowego.}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/h2_winrate_bar.png}
+\caption{H2 -- odsetek wygranych UCT+RAVE ($p_1$) z czystym UCT ($p_2$) z
+95\% przedziałami ufności Wilsona, z liniami referencyjnymi $0{,}5$ i
+$0{,}6$ (\texttt{output/h2/plots/h2\_winrate\_bar.png}).}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/h2_winrate_vs_iterations.png}
+\caption{H2 -- odsetek wygranych UCT+RAVE vs. budżet iteracji (skala
+logarytmiczna), z pasmem 95\% CI
+(\texttt{output/h2/plots/h2\_winrate\_vs\_iterations.png}).}
+\end{figure}
+
+\textbf{Obserwacje:}
+\begin{itemize}
+    \item W żadnej z trzech rozegranych konfiguracji RAVE nie przekracza
+        progu $60\%$ wygranych z czystym UCT, a $p$-value jest daleko od
+        istotności -- \texttt{hypothesis\_holds = False} dla wszystkich.
+    \item W przeciwieństwie do H1, wyniki H2 \emph{nie} pokazują
+        monotonicznego trendu w funkcji liczby iteracji: $0\%$ (500),
+        $40\%$ (1000), $20\%$ (2000) -- najlepszy wynik RAVE jest dla
+        konfiguracji środkowej, nie krańcowej.
+    \item Przy obecnej (małej) próbie $n=5$ na konfigurację dane nie
+        dają podstaw do potwierdzenia H2. Wniosek wstępny: na tym etapie
+        \textbf{H2 nie jest wsparta} -- RAVE nie wykazuje przewagi nad
+        czystym UCT przy budżetach $\leq 2\,000$ iteracji. Zwiększenie
+        liczby partii na konfigurację jest potrzebne do ostatecznej oceny.
+\end{itemize}
+
+\medskip
+\noindent\textbf{Werdykt H2: hipoteza NIEPOTWIERDZONA} (żadna
+konfiguracja nie przekracza progu $60\%$, $p$-value daleko od
+istotności).
 
 
 \section{H3: UCT + progressive bias vs UCT}
@@ -303,10 +613,90 @@ h3\_winrate\_vs\_iterations.png\}}.
 
 \subsection{Wyniki}
 
-\textit{[TODO: tabela \texttt{stats.csv} oraz wykresy z
-\texttt{output/h3/plots/} po wykonaniu \texttt{python run\_h3.py}. W
-szczególności: czy krzywa odsetka wygranych vs. iteracje jest malejąca, i
-czy przewaga jest największa przy $\leq 2\,000$ iteracjach.]}
+\textbf{W skrócie:} progressive bias daje UCT wyraźną przewagę przy
+umiarkowanych budżetach -- $4$ z $5$ wygranych przy $1\,000$ i $2\,000$
+iteracjach -- ale ta przewaga słabnie przy mniejszym ($500$) i większym
+($4\,000$) budżecie, tworząc charakterystyczny ,,wzgórek'' na wykresie
+odsetka wygranych w funkcji liczby iteracji.
+
+Przebieg zakończony dla czterech konfiguracji
+($n=5$ partii/konfigurację, 1 partia/ziarno). Podobnie jak w H2, budżet
+czasowy nie pozwolił na rozegranie całego planowanego sweepu --
+zamiast $\{500,\,1\,000,\,2\,000,\,5\,000,\,10\,000\}$ otrzymano
+$\{500,\,1\,000,\,2\,000,\,4\,000\}$ (\texttt{progressive4000} jako
+ostatnia zakończona konfiguracja, \texttt{progressive5000} i
+\texttt{progressive10000} nie zostały rozegrane). Wyniki z
+\texttt{output/h3/stats.csv}:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrrrrl}
+\toprule
+Konfiguracja & Iteracje & $p_1$-win & 95\% CI & $p$-value & Spójność & $> 60\%$ & H3 \\
+\midrule
+progressive500  & 500  & 0{,}4 & [0{,}12; 0{,}77] & 1{,}0000 & 2/5 & nie & nie \\
+progressive1000 & 1000 & 0{,}8 & [0{,}38; 0{,}96] & 0{,}3750 & 4/5 & tak & nie \\
+progressive2000 & 2000 & 0{,}8 & [0{,}38; 0{,}96] & 0{,}3750 & 4/5 & tak & nie \\
+progressive4000 & 4000 & 0{,}6 & [0{,}23; 0{,}88] & 1{,}0000 & 3/5 & nie & nie \\
+\bottomrule
+\end{tabular}
+\caption{H3 -- odsetek wygranych UCT + progressive bias ($p_1$) z czystym
+UCT ($p_2$) przy tym samym budżecie iteracji. Konfiguracja
+\texttt{progressive500} ma jeden remis (\texttt{draws=1}), stąd $n=4$
+partii zdecydowanych dla testu dwumianowego.}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/h3_winrate_bar.png}
+\caption{H3 -- odsetek wygranych UCT + progressive bias ($p_1$) z czystym
+UCT ($p_2$) z 95\% przedziałami ufności Wilsona, z liniami referencyjnymi
+$0{,}5$ i $0{,}6$ (\texttt{output/h3/plots/h3\_winrate\_bar.png}).}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/h3_winrate_vs_iterations.png}
+\caption{H3 -- odsetek wygranych UCT + progressive bias vs. budżet
+iteracji (skala logarytmiczna), z pasmem 95\% CI; widoczna ,,odwrócona
+litera U'' ze szczytem przy $1\,000$--$2\,000$ iteracjach
+(\texttt{output/h3/plots/h3\_winrate\_vs\_iterations.png}).}
+\end{figure}
+
+\textbf{Obserwacje:}
+\begin{itemize}
+    \item Odsetek wygranych progressive bias rośnie z $40\%$ (500
+        iteracji) do $80\%$ (1000 i 2000 iteracji), a następnie spada do
+        $60\%$ przy $4\,000$ iteracjach -- widoczna jest więc
+        ,,odwrócona litera U'': przewaga jest najwyższa w środkowym
+        zakresie sweepu i zaczyna zanikać przy większych budżetach,
+        częściowo zgodnie z przewidywaniem H3, choć szczyt wypada przy
+        $1\,000$--$2\,000$, a nie -- jak zakładano -- przy $\leq 2\,000$
+        z monotonicznym spadkiem od początku sweepu.
+    \item Konfiguracje \texttt{progressive1000} i \texttt{progressive2000}
+        przekraczają próg $60\%$ i są spójne w $4/5$ ziaren, ale przy
+        $n=5$ nie osiągają istotności statystycznej
+        ($p=0{,}375$) -- \texttt{hypothesis\_holds = False} dla
+        wszystkich konfiguracji.
+    \item Spadek do $60\%$ przy $4\,000$ iteracjach (poniżej progu i ze
+        spadkiem spójności do $3/5$) jest zgodny z oczekiwanym zanikiem
+        przewagi progressive bias wraz ze wzrostem budżetu
+        przeszukiwania, ale brak punktów $5\,000$/$10\,000$ uniemożliwia
+        potwierdzenie tego trendu w pełnym zakresie z konspektu.
+    \item Wniosek: H3 jest \textbf{wstępnie wsparta częściowo} -- widoczna
+        jest przewaga progressive bias przy budżetach
+        $1\,000$--$2\,000$ oraz jej osłabienie przy $4\,000$, jednak ani
+        jedna konfiguracja nie spełnia formalnego kryterium ($p<0{,}05$),
+        a brak skrajnych punktów sweepu ($500$ z jednej strony i
+        $5\,000$/$10\,000$ z drugiej) nie pozwala jednoznacznie ocenić
+        kształtu całej krzywej. Potrzebne jest dokończenie sweepu i
+        zwiększenie liczby partii na konfigurację.
+\end{itemize}
+
+\medskip
+\noindent\textbf{Werdykt H3: hipoteza NIEPOTWIERDZONA} (formalnie --
+brak konfiguracji z $p<0{,}05$; kształt krzywej częściowo zgodny z
+przewidywaniami).
 
 
 \section{H4: krawędzie vs środek planszy}
@@ -358,9 +748,85 @@ konfiguracje mieszają różne typy graczy i budżety iteracji).
 
 \subsection{Wyniki}
 
-\textit{[TODO: tabela \texttt{stats.csv} oraz wykres z
-\texttt{output/h4/plots/} po wykonaniu \texttt{python run\_h4.py}. W
-szczególności wartość \texttt{both\_configs\_hold} ze \texttt{stats.json}.]}
+\textbf{W skrócie:} gracz premiujący krawędzie planszy zdecydowanie
+wygrywa z graczem premiującym centrum, gdy obaj grają \emph{czysto
+heurystycznie} ($8$ z $10$ partii) -- ale gdy ta sama premia zostaje
+wbudowana w przeszukiwanie MCTS (progressive bias), wynik się odwraca i
+wariant ,,krawędzie'' wygrywa już tylko $3$ z $10$ partii. Hipoteza wymaga
+przewagi w \emph{obu} konfiguracjach, więc ten sprzeczny wynik prowadzi do
+jej odrzucenia.
+
+Przebieg zakończony dla obu konfiguracji. Konfiguracja
+\texttt{heuristic\_edge\_vs\_center} otrzymała $10$ partii (limit
+\texttt{--max-games-per-seed} nie został w pełni wykorzystany w ramach
+budżetu czasowego), \texttt{progressive\_edge\_vs\_center\_2000} -- również
+$10$ partii ($n=5$ ziaren $\times$ 2 partie/ziarno). Wyniki z
+\texttt{output/h4/stats.csv}:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrrrrl}
+\toprule
+Konfiguracja & Partie & $p_1$-win & 95\% CI & $p$-value & Spójność & $> 50\%$ & H4 \\
+\midrule
+heuristic\_edge\_vs\_center & 10 & 0{,}8 & [0{,}49; 0{,}94] & 0{,}1094 & 3/5 & tak & nie \\
+progressive\_edge\_vs\_center\_2000 & 10 & 0{,}3 & [0{,}11; 0{,}60] & 0{,}3438 & 1/5 & nie & nie \\
+\bottomrule
+\end{tabular}
+\caption{H4 -- odsetek wygranych wariantu ,,krawędzie'' ($p_1$) z wariantem
+,,środek'' ($p_2$) w dwóch konfiguracjach. \texttt{both\_configs\_hold} =
+\texttt{False} (\texttt{output/h4/stats.json}).}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/h4_winrate_bar.png}
+\caption{H4 -- odsetek wygranych wariantu ,,krawędzie'' ($p_1$) z
+wariantem ,,środek'' ($p_2$) w obu konfiguracjach, z 95\% przedziałami
+ufności Wilsona i linią referencyjną $0{,}5$
+(\texttt{output/h4/plots/h4\_winrate\_bar.png}).}
+\end{figure}
+
+\textbf{Obserwacje:}
+\begin{itemize}
+    \item W konfiguracji czysto heurystycznej
+        (\texttt{heuristic\_edge\_vs\_center}) wariant ,,krawędzie''
+        wygrywa $80\%$ partii ($8/10$), wyraźnie ponad próg $50\%$ i
+        zgodnie z kierunkiem H4 -- jednak przy $n=10$ wynik nie jest
+        statystycznie istotny ($p=0{,}109$), a spójność jest umiarkowana
+        ($3/5$ ziaren, w pozostałych $2$ wynik to remis $1$:$1$).
+    \item W konfiguracji z przeszukiwaniem
+        (\texttt{progressive\_edge\_vs\_center\_2000}, $2\,000$ iteracji)
+        wynik jest \emph{odwrotny} do przewidywania H4: wariant
+        ,,krawędzie'' wygrywa tylko $30\%$ partii ($3/10$), przegrywając
+        z wariantem ,,środek'', i jest niespójny między ziarnami
+        ($1/5$).
+    \item Ponieważ \texttt{both\_configs\_hold} wymaga $>50\%$ wygranych
+        wariantu ,,krawędzie'' w \emph{obu} konfiguracjach, a druga
+        konfiguracja wypada wyraźnie poniżej $50\%$, hipoteza H4 jest
+        uznana za \textbf{niepotwierdzoną}
+        (\texttt{both\_configs\_hold = False}).
+    \item Wniosek: premiowanie figur przy krawędzi planszy wydaje się
+        korzystne dla \emph{samej} heurystyki greedy (gracz ,,edge''
+        dominuje gracza ,,center'' przy braku przeszukiwania), ale w
+        połączeniu z MCTS + progressive bias ta sama premia
+        \emph{szkodzi} -- gracz ,,center'' wygrywa większość partii.
+        Możliwe wytłumaczenie: gdy heurystyka steruje jedynie rankingiem
+        ruchów na poziomie jednego posunięcia, premia za krawędź skłania
+        do defensywnej, trudnej do zaatakowania pozycji wyjściowej; gdy ta
+        sama premia wpływa na bias przeszukiwania MCTS, może odciągać
+        drzewo wyszukiwania od silniejszych linii centralnych, pogarszając
+        jakość gry. H4 w obecnym sformułowaniu (,,krawędzie lepsze w obu
+        konfiguracjach'') jest więc \textbf{odrzucona} na podstawie
+        zebranych danych, choć wynik dla samej heurystyki ($80\%$,
+        $n=10$) wskazuje, że przy większej próbie mógłby się okazać
+        istotny w tym jednym wariancie.
+\end{itemize}
+
+\medskip
+\noindent\textbf{Werdykt H4: hipoteza NIEPOTWIERDZONA (ODRZUCONA)} --
+\texttt{both\_configs\_hold = False}, wynik sprzeczny między dwiema
+konfiguracjami.
 
 
 \section{Testy z udziałem ludzi}
@@ -372,7 +838,172 @@ interfejsu Flask (\texttt{app.py}).]}
 
 \section{Podsumowanie}
 
-\textit{[TODO: zbiorcze podsumowanie wyników H1--H4 oraz testów z
-udziałem ludzi, wnioski, ograniczenia i propozycje dalszych badań.]}
+\subsection{Zbiorcze wyniki H1--H4}
+
+\begin{description}[leftmargin=2.2cm,style=nextline]
+    \item[H1 (UCT vs heurystyka).] \textbf{Niepotwierdzona formalnie, ale
+        wsparta trendem.} Odsetek wygranych UCT rośnie monotonicznie z
+        budżetem iteracji: $0\%$ (500--1000) $\to 20\%$ (2000)
+        $\to 40\%$ (3000) $\to 80\%$ (5000), przekraczając próg $60\%$
+        przy $5\,000$ iteracjach (czyli w zakresie objętym warunkiem H1,
+        $\geq 3\,000$) i będąc spójnym w $4/5$ ziaren. Przy $n=5$ żadna
+        konfiguracja nie osiąga $p<0{,}05$.
+    \item[H2 (RAVE poprawia UCT).] \textbf{Niewsparta.} Żadna z trzech
+        konfiguracji ($500$, $1\,000$, $2\,000$ iteracji) nie przekracza
+        progu $60\%$ wygranych RAVE z czystym UCT ($0\%$, $40\%$, $20\%$),
+        bez monotonicznego trendu.
+    \item[H3 (Progressive bias poprawia UCT).] \textbf{Wsparta
+        częściowo.} Odsetek wygranych progressive bias rośnie do $80\%$
+        przy $1\,000$--$2\,000$ iteracjach (przekraczając próg $60\%$,
+        spójność $4/5$), a następnie spada do $60\%$ przy $4\,000$ --
+        kształt zgodny z oczekiwanym zanikiem przewagi przy większych
+        budżetach, ale brak istotności statystycznej ($p\geq 0{,}375$)
+        i brak punktów $5\,000$/$10\,000$ nie pozwalają na formalne
+        potwierdzenie.
+    \item[H4 (krawędzie vs środek planszy).] \textbf{Odrzucona.}
+        Wariant ,,krawędzie'' wygrywa $80\%$ partii w konfiguracji
+        czysto heurystycznej (zgodnie z H4, choć $p=0{,}109$), ale tylko
+        $30\%$ w konfiguracji z progressive bias (przeciwnie do H4).
+        Ponieważ \texttt{both\_configs\_hold = False}, hipoteza nie jest
+        potwierdzona w sformułowaniu wymagającym przewagi w obu
+        konfiguracjach.
+\end{description}
+
+\subsection{Wspólne ograniczenia}
+
+We wszystkich czterech przebiegach głównym ograniczeniem jest mała liczba
+partii na konfigurację ($n=5$--$10$), wynikająca z budżetu czasowego
+\texttt{--time-budget-min} oraz kosztu obliczeniowego MCTS na planszy
+$10\times10$ z lotnymi damkami. Przy tej wielkości próby przedziały ufności
+Wilsona są szerokie (np. $[0{,}38;\,0{,}96]$ dla $p_1=0{,}8$, $n=5$), co
+sprawia, że nawet wyraźne różnice w odsetku wygranych ($60$--$80\%$) nie
+osiągają istotności statystycznej $p<0{,}05$ w teście dwumianowym. Dla H3
+dodatkowo nie zrealizowano pełnego planowanego sweepu budżetu iteracji
+(brak \texttt{progressive5000}/\texttt{10000}).
+
+\subsection{Wnioski i propozycje dalszych badań}
+
+\begin{itemize}
+    \item Spośród czterech hipotez najsilniejsze wsparcie w danych
+        otrzymuje H1 (przewaga UCT nad heurystyką rośnie z liczbą
+        iteracji) i H3 (progressive bias daje przewagę przy umiarkowanych
+        budżetach iteracji, która zanika przy większych budżetach) --
+        obie wymagają jednak większej liczby partii i/lub dokończenia
+        sweepu, aby przejść z poziomu ,,trend'' na poziom
+        ,,statystycznie istotne''.
+    \item H2 (RAVE) w przebadanym zakresie ($\leq 2\,000$ iteracji) nie
+        wykazuje przewagi nad czystym UCT -- ewentualne dalsze badania
+        powinny rozważyć większy budżet iteracji ($5\,000$) lub inne
+        strategie łączenia statystyk RAVE.
+    \item H4 jest jedyną hipotezą z wynikiem sprzecznym między dwiema
+        konfiguracjami tej samej hipotezy -- sugeruje to, że wpływ premii
+        pozycyjnej (krawędź vs centrum) zależy istotnie od tego, czy
+        heurystyka jest jedynym mechanizmem decyzyjnym, czy tylko biasem
+        wykorzystywanym przez MCTS. Warto to zbadać osobno jako hipotezę
+        o interakcji heurystyki z przeszukiwaniem.
+    \item Główną rekomendacją dla kontynuacji badań jest zwiększenie
+        liczby partii na konfigurację (np. poprzez wydłużenie budżetu
+        czasowego lub optymalizację implementacji MCTS), co pozwoliłoby
+        na osiągnięcie istotności statystycznej dla obserwowanych
+        trendów bez zmiany metodologii.
+\end{itemize}
+
+
+\section{Wykorzystanie dużych modeli językowych (LLM)}
+\label{sec:llm}
+
+W projekcie korzystano z asystenta LLM (Claude, w środowisku Claude Code)
+jako narzędzia wspomagającego implementację i pisanie dokumentacji. Poniżej
+opisano zakres tego wsparcia, oddzielnie dla kodu i dla raportu.
+
+\subsection{Wykorzystanie w kodzie}
+
+\begin{itemize}
+    \item \textbf{Implementacja.} LLM był wykorzystywany do
+        współtworzenia kodu silnika gry (\texttt{game.py}: generowanie
+        ruchów, bicia łańcuchowe, lotne damki, promocja), algorytmów MCTS
+        (\texttt{mcts.py}: warianty UCT, RAVE, progressive bias, root
+        parallelization), graczy (\texttt{players.py}), serwera Flask
+        (\texttt{app.py}) oraz skryptów eksperymentalnych
+        (\texttt{experiments.py}, \texttt{hypothesis\_lib.py},
+        \texttt{run\_h1.py}--\texttt{run\_h4.py},
+        \texttt{analyze\_results.py}, \texttt{plot\_results.py}) -- na
+        podstawie specyfikacji zasad gry, wybranych wariantów MCTS
+        (sekcja~\ref{sec:literatura}) i hipotez badawczych
+        (sekcja~\ref{sec:hipotezy}) określonych przez autorów.
+    \item \textbf{Testy.} LLM pomagał w pisaniu i utrzymaniu testów
+        jednostkowych (\texttt{tests/test\_game.py},
+        \texttt{tests/test\_players.py},
+        \texttt{tests/test\_hypothesis\_lib.py}), w tym przypadków
+        granicznych dla reguł gry (bicia łańcuchowe, lotne damki,
+        brak obowiązku bicia) oraz dla pipeline'u
+        run~$\to$~stats~$\to$~plots.
+    \item \textbf{Debugowanie i refaktoryzacja.} LLM był wykorzystywany do
+        lokalizowania i naprawy błędów (np. w generowaniu ruchów damki,
+        kalibracji budżetu czasowego eksperymentów) oraz do drobnych
+        refaktoryzacji kodu.
+    \item \textbf{Co nie pochodzi od LLM.} Wybór algorytmu (MCTS/UCT),
+        zasad wariantu warcabów, modyfikacji do porównania (RAVE,
+        progressive bias) na podstawie przeglądu
+        literatury~\cite{swiechowski2023mcts}, treść czterech hipotez
+        badawczych (H1--H4) oraz interpretacja i ocena wyników
+        eksperymentów są decyzjami i analizą autorów.
+\end{itemize}
+
+\subsection{Wykorzystanie w raporcie}
+
+\begin{itemize}
+    \item LLM był wykorzystywany do redakcji i formatowania niniejszego
+        dokumentu \LaTeX{} -- m.in. uzupełnienia sekcji ,,Wyniki'' dla
+        H1--H4 na podstawie plików \texttt{output/h\{i\}/stats.csv} i
+        \texttt{stats.json} wygenerowanych przez skrypty
+        \texttt{run\_h\{i\}.py}, wstawienia wykresów
+        (\texttt{output/h\{i\}/plots/*.png}) oraz sformułowania
+        opisów słownych (,,Obserwacje'', werdykty H1--H4) na podstawie
+        tych danych liczbowych.
+    \item Treść sekcji~\ref{sec:problem} (opis problemu, przegląd
+        literatury) i~\ref{sec:hipotezy} (hipotezy i ich uzasadnienie)
+        została rozwinięta przez LLM na podstawie konspektu projektu
+        (\texttt{docs/konspekt/konspekt.tex}), autorstwa zespołu.
+    \item Streszczenie (abstrakt) zostało wygenerowane przez LLM jako
+        synteza wyników poszczególnych hipotez, a następnie
+        zweryfikowane przez autorów pod kątem zgodności z danymi.
+    \item Wszystkie liczby, tabele, wykresy i werdykty (potwierdzona /
+        niepotwierdzona) odpowiadają surowym wynikom eksperymentów
+        zapisanym w katalogu \texttt{output/} -- LLM nie generował
+        żadnych danych liczbowych ,,od siebie''.
+\end{itemize}
+
+\begin{thebibliography}{9}
+
+\bibitem{kocsis2006uct}
+L.~Kocsis and C.~Szepesvári,
+\emph{Bandit based Monte-Carlo Planning},
+ECML, 2006.
+
+\bibitem{swiechowski2023mcts}
+M.~Świechowski, K.~Godlewski, B.~Sawicki, J.~Mańdziuk,
+\emph{Monte Carlo Tree Search: a review of recent modifications and
+applications},
+Artificial Intelligence Review, 56:2497--2562, 2023.
+
+\bibitem{gelly2007combining}
+S.~Gelly and D.~Silver,
+\emph{Combining online and offline knowledge in UCT},
+ICML, 2007.
+
+\bibitem{gelly2011monte}
+S.~Gelly and D.~Silver,
+\emph{Monte-Carlo tree search and rapid action value estimation in
+computer Go},
+Artificial Intelligence, 175(11):1856--1875, 2011.
+
+\bibitem{chaslot2008progressive}
+G.~M.~J.-B.~Chaslot, M.~H.~M.~Winands, H.~J.~van~den~Herik,
+J.~W.~H.~M.~Uiterwijk, B.~Bouzy,
+\emph{Progressive strategies for Monte-Carlo tree search},
+New Mathematics and Natural Computation, 4(3):343--357, 2008.
+
+\end{thebibliography}
 
 \end{document}

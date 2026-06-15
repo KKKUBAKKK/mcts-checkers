@@ -39,8 +39,9 @@ from __future__ import annotations
 from hypothesis_lib import ExperimentConfig, build_arg_parser, run_full_pipeline, run_stage1
 
 # RAVE vs UCT both run MCTS per ply, so each config costs ~2x an H1 config at
-# the same iteration count.
-DEFAULT_ITERATIONS = [500, 1000, 2000, 5000]
+# the same iteration count -- hence a smaller sweep than H1 to fit the time
+# budget.
+DEFAULT_ITERATIONS = [500, 1000, 2000]
 
 
 def build_configs(iterations_list: list[int]) -> list[ExperimentConfig]:

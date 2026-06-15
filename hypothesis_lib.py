@@ -47,8 +47,6 @@ from mcts import mcts_search_parallel
 DEFAULT_WORKERS = 4
 
 
-# ──────────────────────────────────────── seeds
-
 def derive_seeds(base_seed: int, n: int) -> list[int]:
     """Deterministically derive ``n`` base seeds from one base seed.
 
@@ -58,8 +56,6 @@ def derive_seeds(base_seed: int, n: int) -> list[int]:
     """
     return [base_seed + i * 10007 for i in range(n)]
 
-
-# ──────────────────────────────────────── statistics
 
 def wilson_ci(wins: int, n: int, z: float = 1.959963984540054) -> tuple[float, float]:
     """Wilson score interval for a binomial proportion (default 95% CI)."""
@@ -92,8 +88,6 @@ def binomial_two_sided_pvalue(wins: int, n: int, p0: float = 0.5) -> float:
     return min(1.0, total)
 
 
-# ──────────────────────────────────────── experiment configuration
-
 @dataclass
 class ExperimentConfig:
     """One (p1 vs p2, iteration budget) configuration to repeat across seeds.
@@ -116,8 +110,6 @@ class ExperimentConfig:
         if self.mcts_search_units == 0:
             self.mcts_search_units = self.iterations
 
-
-# ──────────────────────────────────────── calibration & time budgeting
 
 def calibrate_seconds_per_iteration(iterations: int = 200, workers: int = 4,
                                     seed: int = 0) -> float:
@@ -180,8 +172,6 @@ def allocate_games_per_seed(configs: list[ExperimentConfig], sec_per_iter: float
     return games, total
 
 
-# ──────────────────────────────────────── running configs
-
 def run_config(cfg: ExperimentConfig, seeds: list[int], games_per_seed: int,
                max_moves: int, num_workers: int | None,
                log_dir: str | None, run_tag: str) -> dict:
@@ -203,8 +193,6 @@ def run_config(cfg: ExperimentConfig, seeds: list[int], games_per_seed: int,
         per_seed.append({"seed": seed, "summary": summary})
     return {"config": asdict(cfg), "per_seed": per_seed}
 
-
-# ──────────────────────────────────────── CLI / stage-1 driver
 
 def build_arg_parser(description: str, default_iterations: list[int],
                      default_output_dir: str) -> argparse.ArgumentParser:
