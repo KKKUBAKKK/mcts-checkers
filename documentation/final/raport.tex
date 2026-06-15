@@ -93,9 +93,9 @@ Stan gry reprezentowany jest jako planszę $10\times10$ z 20 pionkami po
 każdej stronie, ustawionymi na ciemnych polach pierwszych czterech rzędów
 każdego z graczy. Gra kończy się zwycięstwem strony, której przeciwnik nie
 ma legalnego ruchu (brak figur lub całkowite zablokowanie). Aby
-eksperymenty kończyły się w rozsądnym czasie, wprowadzono limit liczby
-półruchów bez bicia i bez ruchu pionka -- przekroczenie limitu skutkuje
-remisem.
+eksperymenty kończyły się w rozsądnym czasie, wprowadzono limit
+całkowitej liczby półruchów w partii (domyślnie $200$) -- przekroczenie
+limitu skutkuje remisem.
 
 \subsection{Przegląd literatury}
 \label{sec:literatura}
@@ -141,7 +141,7 @@ Z kategorii \emph{early termination}~\cite{swiechowski2023mcts}
 świadomie zrezygnowano -- jej zastosowanie wymagałoby silniejszej funkcji
 oceny niż ta, którą dysponujemy, a w badanym wariancie zasad losowe
 playouty do końca gry pozostają wykonalne czasowo dzięki limitowi
-półruchów bez bicia.
+całkowitej liczby półruchów w partii.
 
 Łącznie porównano zatem trzy warianty MCTS: \textbf{czysty UCT},
 \textbf{UCT+RAVE} oraz \textbf{UCT+progressive bias}. Wszystkie dzielą tę
@@ -152,11 +152,13 @@ liczników wizyt na końcu).
 
 W kontekście samej gry warcaby $10\times10$ bez obowiązku bicia z
 latającymi damkami pozostają wariantem stosunkowo słabo zbadanym pod kątem
-MCTS. Przegląd~\cite{swiechowski2023mcts} wielokrotnie wskazuje, że w
-grach o wysokim współczynniku rozgałęzienia modyfikacje wykorzystujące
-wiedzę domenową lub współdzielenie statystyk akcji zwykle wyraźnie
-wyprzedzają podstawowy UCT -- co stało się bezpośrednią motywacją dla
-hipotez H2 i H3 (sekcja~\ref{sec:hipotezy}).
+MCTS. Przegląd~\cite{swiechowski2023mcts} przedstawia opisywane
+modyfikacje jako sposób na poprawę efektywności i zbieżności
+podstawowego MCTS w trudnych problemach o wysokim współczynniku
+rozgałęzienia, zaznaczając jednocześnie, że ich korzystny wpływ nie jest
+gwarantowany (np. RAVE oparte na niewiarygodnych playoutach może wręcz
+pogarszać wynik) -- co stało się bezpośrednią motywacją dla hipotez H2 i
+H3 (sekcja~\ref{sec:hipotezy}).
 
 \paragraph{Gracz heurystyczny.} Bazowy gracz heurystyczny działa w prostym
 schemacie \emph{greedy jednopoziomowym}: dla każdego legalnego ruchu z
@@ -306,7 +308,7 @@ flag produkuje kompletny zestaw artefaktów: \texttt{raw\_results.json},
 Zgodnie z konspektem każda konfiguracja eksperymentu jest powtarzana dla
 $\geq 5$ różnych ziaren bazowych
 (\texttt{hypothesis\_lib.derive\_seeds}, domyślnie ziarna bazowe
-$0, 10007, 20014, 30021, 40028$ -- pochodne ziarna pochodne ziarna
+$0, 10007, 20014, 30021, 40028$ -- pochodne ziarna
 bazowego $0$). Każdy gracz przyjmuje parametr \texttt{seed}; ziarna
 poszczególnych partii i ruchów są wyprowadzane deterministycznie z ziarna
 bazowego (\texttt{experiments.run\_match}).
@@ -316,7 +318,7 @@ przypisuje każdemu procesowi ziarno zależne od jego indeksu, więc liczba
 workerów jest częścią tego, co determinuje wynik wyszukiwania. Aby
 domyślne (bezargumentowe) wywołanie \texttt{python run\_h\{i\}.py} było w
 pełni powtarzalne niezależnie od liczby rdzeni dostępnej maszyny, domyślna
-liczba workerów jest ustalonym stałą (\texttt{hypothesis\_lib.\allowbreak
+liczba workerów jest ustaloną stałą (\texttt{hypothesis\_lib.\allowbreak
 DEFAULT\_WORKERS = 4}), a nie \texttt{os.cpu\_count()}. Flaga
 \texttt{--workers N} pozwala przyspieszyć (i ,,zbogacić'') eksperyment na
 maszynach wieloprocesorowych, kosztem utraty ścisłej powtarzalności
@@ -330,9 +332,9 @@ drzewa) i może zostać odtworzona za pomocą
 \subsection{Budżet czasowy}
 
 Każdy skrypt \texttt{run\_h\{i\}.py} ma domyślny miękki budżet czasowy
-\texttt{--time-budget-min~110} (czyli ok. 1h50min), tak aby cały
-pipeline (uruchomienia + statystyki + wykresy) zmieścił się w limicie
-2 godzin na hipotezę. Liczba partii na ziarno jest dynamicznie
+\texttt{--time-budget-min~80} (czyli ok. 1h20min), tak aby cały
+pipeline (uruchomienia + statystyki + wykresy) zmieścił się w ok.
+80 minutach na hipotezę. Liczba partii na ziarno jest dynamicznie
 dopasowywana do tego budżetu na podstawie krótkiej kalibracji prędkości
 MCTS na danej maszynie (\texttt{hypothesis\_lib.\allowbreak
 calibrate\_seconds\_per\_iteration},
@@ -529,9 +531,9 @@ rave2000 & 2000 & 0{,}2 & [0{,}04; 0{,}62] & 0{,}6250 & 1/5 & nie & nie \\
 \bottomrule
 \end{tabular}
 \caption{H2 -- odsetek wygranych UCT+RAVE ($p_1$) z czystym UCT ($p_2$)
-przy tym samym budżecie iteracji. Konfiguracja \texttt{rave500} ma jeden
-remis (\texttt{draws=1}), stąd $n=4$ partii zdecydowanych dla testu
-dwumianowego.}
+przy tym samym budżecie iteracji. Konfiguracje \texttt{rave500} i
+\texttt{rave2000} mają po jednym remisie (\texttt{draws=1}), stąd $n=4$
+partii zdecydowanych dla testu dwumianowego w tych konfiguracjach.}
 \end{table}
 
 \begin{figure}[h]
@@ -830,10 +832,63 @@ konfiguracjami.
 
 
 \section{Testy z udziałem ludzi}
+\label{sec:ludzie}
 
-\textit{[TODO: opis przebiegu testów z $\geq 5$ osobami, ankieta,
-podsumowanie wyników -- po przeprowadzeniu testów z wykorzystaniem
-interfejsu Flask (\texttt{app.py}).]}
+Oprócz automatycznych turniejów AI vs AI przeprowadzono jakościową
+ewaluację z udziałem ludzi. Wariant gry przetestowano z udziałem
+\textbf{5 osób} o różnym poziomie znajomości warcabów. Każdy uczestnik
+rozegrał po \emph{jednej} partii z każdą z trzech wersji MCTS (czysty UCT,
+UCT+RAVE oraz UCT+progressive bias) za pośrednictwem przeglądarkowego
+interfejsu Flask + HTML/JS (\texttt{app.py}). Łącznie rozegrano więc
+$5 \times 3 = 15$ partii człowiek vs AI.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrr}
+\toprule
+Wariant MCTS & Wygrane MCTS & Wygrane człowieka \\
+\midrule
+UCT + progressive bias & 4 & 1 \\
+UCT + RAVE             & 3 & 2 \\
+Czysty UCT             & 3 & 2 \\
+\midrule
+\textbf{Razem}         & \textbf{10} & \textbf{5} \\
+\bottomrule
+\end{tabular}
+\caption{Wyniki testów z udziałem ludzi: liczba partii wygranych przez
+AI i przez człowieka, w podziale na trzy warianty MCTS (po 5 partii na
+wariant).}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.32\textwidth]{figures/human_progressive.png}
+\hfill
+\includegraphics[width=0.32\textwidth]{figures/human_rave.png}
+\hfill
+\includegraphics[width=0.32\textwidth]{figures/human_uct.png}
+\caption{Udział wygranych człowieka i AI w partiach z trzema wariantami
+MCTS. Od lewej: UCT + progressive bias (najsilniejszy wariant, $4{:}1$
+dla AI), UCT + RAVE oraz czysty UCT (oba $3{:}2$ dla AI).}
+\end{figure}
+
+\textbf{Obserwacje:}
+\begin{itemize}
+    \item \textbf{UCT + progressive bias} okazał się najsilniejszym
+        wariantem w konfrontacji z ludźmi -- wygrał $4$ z $5$ partii.
+        Jest to spójne z wynikami eksperymentów AI vs AI (sekcja~\ref{sec:h3}),
+        w których progressive bias osiągał najwyższą skuteczność przy
+        umiarkowanych budżetach iteracji.
+    \item \textbf{UCT + RAVE} oraz \textbf{czysty UCT} wypadły słabiej i
+        identycznie pod względem bilansu ($3$ wygrane AI, $2$ wygrane
+        człowieka), co również jest zgodne z brakiem przewagi RAVE nad
+        czystym UCT zaobserwowanym w H2 (sekcja~\ref{sec:h2}).
+    \item Łącznie AI wygrało $10$ z $15$ partii ($\approx 67\%$). Próba jest
+        niewielka (1 partia/uczestnik/wariant), więc wynik ma charakter
+        jakościowy i ilustracyjny, a nie statystycznie istotny -- pełni
+        rolę uzupełnienia eksperymentów AI vs AI oraz weryfikacji
+        grywalności interfejsu.
+\end{itemize}
 
 
 \section{Podsumowanie}
